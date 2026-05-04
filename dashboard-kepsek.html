@@ -142,6 +142,16 @@
     </div>
 
     <script src="script.js"></script>
+    <script>
+        // Ambil data user dari sessionStorage
+        const user = JSON.parse(sessionStorage.getItem('currentUser'));
+        if (user && user.role === 'guru') {
+            document.getElementById('userName').textContent = user.nama;
+        } else {
+            // Jika bukan guru, kembalikan ke login
+            window.location.href = 'index.html';
+        }
+    </script>
 </body>
 
 </html>
