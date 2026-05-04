@@ -3,7 +3,7 @@
 // Versi: 9.0 - FULLY WORKING
 // ============================================================
 
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzZQe2zyDIm4vX72NUO4OLriAkySP0qlvAmJAosEOMsKToZ1nEvarF5jdqEjYe8uXxN/exec";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwt4JrNHxCeDjN5joC2p3BqYZCQWBLHvD4yt6T6v-TsSjHy7VzqpOitA0-lXEDKBx9kkAs/exec";
 
 let currentUser = null;
 let stream = null;
