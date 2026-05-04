@@ -14,23 +14,18 @@
     <div class="dashboard-container">
         <aside class="sidebar">
             <div class="sidebar-header">
-                <div class="logo-small">
-                    <i class="fas fa-chalkboard-user"></i>
-                    <span>Absensi Digital</span>
-                </div>
+                <div class="logo-small"><i class="fas fa-chalkboard-user"></i><span>Absensi Digital</span></div>
             </div>
             <nav class="sidebar-nav">
                 <a href="#" class="nav-item active" data-page="dashboard"><i class="fas fa-home"></i> Dashboard</a>
                 <a href="#" class="nav-item" data-page="attendance"><i class="fas fa-camera"></i> Absen Hari Ini</a>
-                <a href="#" class="nav-item" data-page="history"><i class="fas fa-history"></i> Riwayat Absensi</a>
+                <a href="#" class="nav-item" data-page="history"><i class="fas fa-history"></i> Riwayat</a>
                 <a href="#" class="nav-item" data-page="profile"><i class="fas fa-user"></i> Profil</a>
             </nav>
             <div class="sidebar-footer">
-                <div class="user-info">
-                    <i class="fas fa-user-circle"></i>
+                <div class="user-info"><i class="fas fa-user-circle"></i>
                     <div>
-                        <p id="userName">Loading...</p>
-                        <small id="userRole">Guru</small>
+                        <p id="userName">Loading...</p><small>Guru</small>
                     </div>
                 </div>
                 <button id="logoutBtn" class="btn-logout"><i class="fas fa-sign-out-alt"></i> Keluar</button>
@@ -53,12 +48,6 @@
                                 <p>Total Hadir Bulan Ini</p>
                             </div>
                         </div>
-                        <div class="stat-card"><i class="fas fa-clock"></i>
-                            <div>
-                                <h3 id="totalTerlambat">0</h3>
-                                <p>Terlambat</p>
-                            </div>
-                        </div>
                         <div class="stat-card"><i class="fas fa-percent"></i>
                             <div>
                                 <h3 id="persenKehadiran">0%</h3>
@@ -68,7 +57,7 @@
                     </div>
                     <div class="info-card">
                         <h3><i class="fas fa-info-circle"></i> Informasi Hari Ini</h3>
-                        <div id="todayInfo">Memuat data...</div>
+                        <div id="todayInfo">Memuat...</div>
                     </div>
                     <div class="action-card">
                         <h3>Aksi Cepat</h3>
@@ -79,10 +68,10 @@
                 </div>
 
                 <div id="pageAttendance" class="page">
-                    <h3><i class="fas fa-camera"></i> Absen Masuk / Pulang</h3>
+                    <h3><i class="fas fa-camera"></i> Absen Hari Ini</h3>
                     <div id="attendanceStatus" class="info-card">
                         <h4>Status Hari Ini</h4>
-                        <div id="statusDetails">Memeriksa status...</div>
+                        <div id="statusDetails">Memeriksa...</div>
                     </div>
                     <div class="camera-section">
                         <h4>Ambil Foto Selfie</h4>
@@ -90,12 +79,11 @@
                                 style="display:none;"></canvas><button id="captureBtn" class="btn-primary"><i
                                     class="fas fa-camera"></i> Ambil Foto</button></div>
                         <div id="photoPreview" class="photo-preview" style="display:none;"><img id="previewImg"
-                                alt="Preview foto"><button id="retakeBtn" class="btn-text">Ulangi</button></div>
+                                alt="Preview"><button id="retakeBtn" class="btn-text">Ulangi</button></div>
                     </div>
                     <div class="location-section">
                         <h4><i class="fas fa-map-marker-alt"></i> Lokasi Anda</h4>
-                        <div id="locationStatus"><button id="getLocationBtn" class="btn-secondary">Dapatkan Lokasi
-                                Saya</button></div>
+                        <button id="getLocationBtn" class="btn-secondary">Dapatkan Lokasi</button>
                         <p id="locationInfo" class="location-info"></p>
                     </div>
                     <div class="attendance-buttons"><button id="checkInBtn" class="btn-success" disabled><i
@@ -105,20 +93,20 @@
                 </div>
 
                 <div id="pageHistory" class="page">
-                    <h3><i class="fas fa-history"></i> Riwayat Absensi</h3>
+                    <h3>Riwayat Absensi</h3>
                     <div class="filter-bar"><select id="historyMonth">
-                            <option value="1">Januari</option>
-                            <option value="2">Februari</option>
-                            <option value="3">Maret</option>
-                            <option value="4">April</option>
+                            <option value="1">Jan</option>
+                            <option value="2">Feb</option>
+                            <option value="3">Mar</option>
+                            <option value="4">Apr</option>
                             <option value="5">Mei</option>
-                            <option value="6">Juni</option>
-                            <option value="7">Juli</option>
-                            <option value="8">Agustus</option>
-                            <option value="9">September</option>
-                            <option value="10">Oktober</option>
-                            <option value="11">November</option>
-                            <option value="12">Desember</option>
+                            <option value="6">Jun</option>
+                            <option value="7">Jul</option>
+                            <option value="8">Agu</option>
+                            <option value="9">Sep</option>
+                            <option value="10">Okt</option>
+                            <option value="11">Nov</option>
+                            <option value="12">Des</option>
                         </select><select id="historyYear"></select><button id="loadHistoryBtn"
                             class="btn-secondary">Tampilkan</button></div>
                     <div class="table-responsive">
@@ -142,7 +130,7 @@
                 </div>
 
                 <div id="pageProfile" class="page">
-                    <h3><i class="fas fa-user"></i> Profil Saya</h3>
+                    <h3>Profil Saya</h3>
                     <div class="profile-card">
                         <div class="profile-field"><label>Nama</label>
                             <p id="profileName">-</p>
@@ -171,6 +159,11 @@
     </div>
 
     <script src="script.js"></script>
+    <script>
+        const user = JSON.parse(sessionStorage.getItem('currentUser'));
+        if (!user || user.role !== 'guru') { window.location.href = 'index.html'; }
+        else { document.getElementById('userName').textContent = user.nama; }
+    </script>
 </body>
 
 </html>

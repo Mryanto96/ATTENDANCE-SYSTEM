@@ -112,7 +112,8 @@
                                     placeholder="106.816666"></div>
                             <div class="form-group"><label>Radius (meter)</label><input type="number"
                                     id="newLocationRadius" placeholder="50" value="50"></div>
-                        </div><button id="addLocationBtn" class="btn-primary">Tambah Lokasi</button>
+                        </div>
+                        <button id="addLocationBtn" class="btn-primary">Tambah Lokasi</button>
                         <div id="locationMessage" class="message"></div>
                     </div>
                     <h4>Daftar Lokasi Aktif</h4>
@@ -188,8 +189,9 @@
                             <div class="form-group"><label>Tahun</label><select id="reportYear"></select></div>
                             <div class="form-group"><label>Kirim ke Email</label><input type="email" id="reportEmail"
                                     placeholder="email@sekolah.com"></div>
-                        </div><button id="generateReportBtn" class="btn-primary"><i class="fas fa-download"></i>
-                            Generate & Kirim Laporan</button>
+                        </div>
+                        <button id="generateReportBtn" class="btn-primary"><i class="fas fa-download"></i> Generate &
+                            Kirim Laporan</button>
                         <div id="reportMessage" class="message"></div>
                     </div>
                 </div>
@@ -231,7 +233,8 @@
             <div class="form-group"><label>Status</label><select id="teacherStatus">
                     <option value="Verified">Aktif</option>
                     <option value="Blocked">Diblokir</option>
-                </select></div><button id="saveTeacherBtn" class="btn-primary">Simpan</button>
+                </select></div>
+            <button id="saveTeacherBtn" class="btn-primary">Simpan</button>
             <div id="teacherModalMessage" class="message"></div>
         </div>
     </div>
@@ -247,14 +250,9 @@
 
     <script src="script.js"></script>
     <script>
-        // Ambil data user dari sessionStorage
         const user = JSON.parse(sessionStorage.getItem('currentUser'));
-        if (user && user.role === 'guru') {
-            document.getElementById('userName').textContent = user.nama;
-        } else {
-            // Jika bukan guru, kembalikan ke login
-            window.location.href = 'index.html';
-        }
+        if (!user || user.role !== 'admin') { window.location.href = 'index.html'; }
+        else { document.getElementById('userName').textContent = user.nama; }
     </script>
 </body>
 
