@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Absensi Digital - Login</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <div class="logo">
+                    <i class="fas fa-chalkboard-user"></i>
+                    <h1>Absensi Digital</h1>
+                </div>
+                <p>SMA Negeri 1 Contoh</p>
+            </div>
+
+            <div class="auth-tabs">
+                <button class="tab-btn active" data-tab="login">Masuk</button>
+                <button class="tab-btn" data-tab="register">Daftar</button>
+            </div>
+
+            <!-- Form Login -->
+            <form id="loginForm" class="auth-form active">
+                <div class="form-group">
+                    <label><i class="fas fa-envelope"></i> Email</label>
+                    <input type="email" id="loginEmail" placeholder="guru@sekolah.com" required>
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-lock"></i> Password</label>
+                    <input type="password" id="loginPassword" placeholder="********" required>
+                </div>
+                <div class="form-options">
+                    <label class="checkbox">
+                        <input type="checkbox" id="rememberMe"> Ingat saya
+                    </label>
+                    <a href="#" id="forgotPasswordLink" class="forgot-link">Lupa password?</a>
+                </div>
+                <button type="submit" class="btn-primary">Masuk</button>
+                <div id="loginMessage" class="message"></div>
+                <div id="resendVerificationContainer" style="display:none;">
+                    <a href="#" id="resendVerificationLink" class="resend-link">Kirim ulang email verifikasi</a>
+                </div>
+            </form>
+
+            <!-- Form Register -->
+            <form id="registerForm" class="auth-form">
+                <div class="form-group">
+                    <label><i class="fas fa-user"></i> Nama Lengkap</label>
+                    <input type="text" id="regNama" placeholder="Nama lengkap" required>
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-envelope"></i> Email</label>
+                    <input type="email" id="regEmail" placeholder="email@sekolah.com" required>
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-lock"></i> Password</label>
+                    <input type="password" id="regPassword" placeholder="Minimal 6 karakter" required>
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-user-tag"></i> Role (Pilih)</label>
+                    <select id="regRole">
+                        <option value="guru">Guru</option>
+                        <option value="kepsek">Kepala Sekolah</option>
+                    </select>
+                    <small style="color:#666;">*Admin akan diatur oleh operator</small>
+                </div>
+                <button type="submit" class="btn-primary">Daftar</button>
+                <div id="registerMessage" class="message"></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Lupa Password -->
+    <div id="forgotModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h3><i class="fas fa-key"></i> Reset Password</h3>
+            <div id="forgotStep1">
+                <p>Masukkan email terdaftar Anda</p>
+                <input type="email" id="forgotEmail" placeholder="Email" required>
+                <button id="sendOtpBtn" class="btn-secondary">Kirim OTP</button>
+            </div>
+            <div id="forgotStep2" style="display:none;">
+                <p>Masukkan kode OTP yang dikirim ke email Anda</p>
+                <input type="text" id="otpCode" placeholder="6 digit OTP" maxlength="6">
+                <p id="otpTimer" class="timer-text"></p>
+                <button id="verifyOtpBtn" class="btn-secondary">Verifikasi OTP</button>
+                <button id="resendOtpBtn" class="btn-text">Kirim ulang OTP</button>
+            </div>
+            <div id="forgotStep3" style="display:none;">
+                <p>Buat password baru</p>
+                <input type="password" id="newPassword" placeholder="Password baru" required>
+                <input type="password" id="confirmPassword" placeholder="Konfirmasi password" required>
+                <button id="resetPasswordBtn" class="btn-primary">Reset Password</button>
+            </div>
+            <div id="forgotMessage" class="message"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>

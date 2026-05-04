@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Guru - Absensi Digital</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+
+<body>
+    <div class="dashboard-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-small">
+                    <i class="fas fa-chalkboard-user"></i>
+                    <span>Absensi Digital</span>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" data-page="dashboard"><i class="fas fa-home"></i> Dashboard</a>
+                <a href="#" class="nav-item" data-page="attendance"><i class="fas fa-camera"></i> Absen Hari Ini</a>
+                <a href="#" class="nav-item" data-page="history"><i class="fas fa-history"></i> Riwayat Absensi</a>
+                <a href="#" class="nav-item" data-page="profile"><i class="fas fa-user"></i> Profil</a>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <i class="fas fa-user-circle"></i>
+                    <div>
+                        <p id="userName">Loading...</p>
+                        <small id="userRole">Guru</small>
+                    </div>
+                </div>
+                <button id="logoutBtn" class="btn-logout"><i class="fas fa-sign-out-alt"></i> Keluar</button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-bar">
+                <button id="mobileMenuToggle" class="mobile-menu-btn"><i class="fas fa-bars"></i></button>
+                <h2 id="pageTitle">Dashboard</h2>
+                <div class="date-time"><span id="currentDate"></span><span id="currentTime"></span></div>
+            </header>
+
+            <div class="content-area">
+                <div id="pageDashboard" class="page active">
+                    <div class="stats-grid">
+                        <div class="stat-card"><i class="fas fa-calendar-check"></i>
+                            <div>
+                                <h3 id="totalHadir">0</h3>
+                                <p>Total Hadir Bulan Ini</p>
+                            </div>
+                        </div>
+                        <div class="stat-card"><i class="fas fa-clock"></i>
+                            <div>
+                                <h3 id="totalTerlambat">0</h3>
+                                <p>Terlambat</p>
+                            </div>
+                        </div>
+                        <div class="stat-card"><i class="fas fa-percent"></i>
+                            <div>
+                                <h3 id="persenKehadiran">0%</h3>
+                                <p>Kehadiran</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="info-card">
+                        <h3><i class="fas fa-info-circle"></i> Informasi Hari Ini</h3>
+                        <div id="todayInfo">Memuat data...</div>
+                    </div>
+                    <div class="action-card">
+                        <h3>Aksi Cepat</h3>
+                        <div class="action-buttons"><button id="quickCheckInBtn" class="btn-success"><i
+                                    class="fas fa-sign-in-alt"></i> Absen Masuk</button><button id="quickCheckOutBtn"
+                                class="btn-warning"><i class="fas fa-sign-out-alt"></i> Absen Pulang</button></div>
+                    </div>
+                </div>
+
+                <div id="pageAttendance" class="page">
+                    <h3><i class="fas fa-camera"></i> Absen Masuk / Pulang</h3>
+                    <div id="attendanceStatus" class="info-card">
+                        <h4>Status Hari Ini</h4>
+                        <div id="statusDetails">Memeriksa status...</div>
+                    </div>
+                    <div class="camera-section">
+                        <h4>Ambil Foto Selfie</h4>
+                        <div class="camera-container"><video id="video" autoplay playsinline></video><canvas id="canvas"
+                                style="display:none;"></canvas><button id="captureBtn" class="btn-primary"><i
+                                    class="fas fa-camera"></i> Ambil Foto</button></div>
+                        <div id="photoPreview" class="photo-preview" style="display:none;"><img id="previewImg"
+                                alt="Preview foto"><button id="retakeBtn" class="btn-text">Ulangi</button></div>
+                    </div>
+                    <div class="location-section">
+                        <h4><i class="fas fa-map-marker-alt"></i> Lokasi Anda</h4>
+                        <div id="locationStatus"><button id="getLocationBtn" class="btn-secondary">Dapatkan Lokasi
+                                Saya</button></div>
+                        <p id="locationInfo" class="location-info"></p>
+                    </div>
+                    <div class="attendance-buttons"><button id="checkInBtn" class="btn-success" disabled><i
+                                class="fas fa-sign-in-alt"></i> Absen Masuk</button><button id="checkOutBtn"
+                            class="btn-warning" disabled><i class="fas fa-sign-out-alt"></i> Absen Pulang</button></div>
+                    <div id="attendanceMessage" class="message"></div>
+                </div>
+
+                <div id="pageHistory" class="page">
+                    <h3><i class="fas fa-history"></i> Riwayat Absensi</h3>
+                    <div class="filter-bar"><select id="historyMonth">
+                            <option value="1">Januari</option>
+                            <option value="2">Februari</option>
+                            <option value="3">Maret</option>
+                            <option value="4">April</option>
+                            <option value="5">Mei</option>
+                            <option value="6">Juni</option>
+                            <option value="7">Juli</option>
+                            <option value="8">Agustus</option>
+                            <option value="9">September</option>
+                            <option value="10">Oktober</option>
+                            <option value="11">November</option>
+                            <option value="12">Desember</option>
+                        </select><select id="historyYear"></select><button id="loadHistoryBtn"
+                            class="btn-secondary">Tampilkan</button></div>
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Tanggal</th>
+                                    <th>Check In</th>
+                                    <th>Check Out</th>
+                                    <th>Lokasi</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historyBody">
+                                <tr>
+                                    <td colspan="5">Belum ada data</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="pageProfile" class="page">
+                    <h3><i class="fas fa-user"></i> Profil Saya</h3>
+                    <div class="profile-card">
+                        <div class="profile-field"><label>Nama</label>
+                            <p id="profileName">-</p>
+                        </div>
+                        <div class="profile-field"><label>Email</label>
+                            <p id="profileEmail">-</p>
+                        </div>
+                        <div class="profile-field"><label>Role</label>
+                            <p id="profileRole">-</p>
+                        </div>
+                    </div>
+                    <button id="changePasswordBtn" class="btn-secondary"><i class="fas fa-key"></i> Ganti
+                        Password</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="changePasswordModal" class="modal">
+        <div class="modal-content"><span class="close-modal">&times;</span>
+            <h3>Ganti Password</h3><input type="password" id="newPassword1" placeholder="Password baru"><input
+                type="password" id="newPassword2" placeholder="Konfirmasi"><button id="confirmChangePassword"
+                class="btn-primary">Simpan</button>
+            <div id="changePwMessage" class="message"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>

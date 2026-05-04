@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Admin - Absensi Digital</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+
+<body>
+    <div class="dashboard-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-small"><i class="fas fa-chalkboard-user"></i><span>Absensi Digital</span></div>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" data-page="dashboard"><i class="fas fa-home"></i> Dashboard</a>
+                <a href="#" class="nav-item" data-page="teachers"><i class="fas fa-users"></i> Kelola Guru</a>
+                <a href="#" class="nav-item" data-page="locations"><i class="fas fa-map-marker-alt"></i> Kelola
+                    Lokasi</a>
+                <a href="#" class="nav-item" data-page="settings"><i class="fas fa-cog"></i> Pengaturan</a>
+                <a href="#" class="nav-item" data-page="reports"><i class="fas fa-file-alt"></i> Laporan</a>
+                <a href="#" class="nav-item" data-page="profile"><i class="fas fa-user"></i> Profil</a>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="user-info"><i class="fas fa-user-circle"></i>
+                    <div>
+                        <p id="userName">Loading...</p><small>Administrator</small>
+                    </div>
+                </div>
+                <button id="logoutBtn" class="btn-logout"><i class="fas fa-sign-out-alt"></i> Keluar</button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-bar">
+                <button id="mobileMenuToggle" class="mobile-menu-btn"><i class="fas fa-bars"></i></button>
+                <h2 id="pageTitle">Dashboard Admin</h2>
+                <div class="date-time"><span id="currentDate"></span><span id="currentTime"></span></div>
+            </header>
+
+            <div class="content-area">
+                <div id="pageDashboard" class="page active">
+                    <div class="stats-grid">
+                        <div class="stat-card"><i class="fas fa-users"></i>
+                            <div>
+                                <h3 id="totalGuru">0</h3>
+                                <p>Total Guru</p>
+                            </div>
+                        </div>
+                        <div class="stat-card"><i class="fas fa-user-graduate"></i>
+                            <div>
+                                <h3 id="totalKepsek">0</h3>
+                                <p>Kepala Sekolah</p>
+                            </div>
+                        </div>
+                        <div class="stat-card"><i class="fas fa-user-shield"></i>
+                            <div>
+                                <h3 id="totalAdmin">0</h3>
+                                <p>Admin</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="pageTeachers" class="page">
+                    <h3>Kelola Data Guru</h3>
+                    <button id="addTeacherBtn" class="btn-primary" style="margin-bottom:20px;"><i
+                            class="fas fa-plus"></i> Tambah Guru</button>
+                    <div class="filter-bar"><input type="text" id="searchTeacher"
+                            placeholder="Cari nama atau email..."><select id="filterRole">
+                            <option value="all">Semua Role</option>
+                            <option value="guru">Guru</option>
+                            <option value="kepsek">Kepala Sekolah</option>
+                            <option value="admin">Admin</option>
+                        </select></div>
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>No</th>
+                                    <th>Nama</th>
+                                    <th>Email</th>
+                                    <th>Role</th>
+                                    <th>Status</th>
+                                    <th>Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="teachersBody"></tbody>
+                        </table>
+                    </div>
+                    <div id="teacherDetail" style="display:none;">
+                        <h4>Detail Absensi</h4>
+                        <div id="teacherAttendanceList"></div><button id="closeDetailBtn"
+                            class="btn-text">Tutup</button>
+                    </div>
+                </div>
+
+                <div id="pageLocations" class="page">
+                    <h3>Kelola Lokasi Absensi</h3>
+                    <div class="form-card">
+                        <h4>Tambah Lokasi Baru</h4>
+                        <div class="form-row">
+                            <div class="form-group"><label>Nama Lokasi</label><input type="text" id="newLocationName"
+                                    placeholder="Contoh: Ruang Kelas 1"></div>
+                            <div class="form-group"><label>Latitude</label><input type="text" id="newLocationLat"
+                                    placeholder="-6.200000"></div>
+                            <div class="form-group"><label>Longitude</label><input type="text" id="newLocationLng"
+                                    placeholder="106.816666"></div>
+                            <div class="form-group"><label>Radius (meter)</label><input type="number"
+                                    id="newLocationRadius" placeholder="50" value="50"></div>
+                        </div><button id="addLocationBtn" class="btn-primary">Tambah Lokasi</button>
+                        <div id="locationMessage" class="message"></div>
+                    </div>
+                    <h4>Daftar Lokasi Aktif</h4>
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Nama Lokasi</th>
+                                    <th>Latitude</th>
+                                    <th>Longitude</th>
+                                    <th>Radius</th>
+                                    <th>Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="locationsBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="pageSettings" class="page">
+                    <h3>Pengaturan Sistem</h3>
+                    <div class="form-card">
+                        <h4>Jam Absensi Senin-Rabu</h4>
+                        <div class="form-row">
+                            <div class="form-group"><label>Masuk Mulai</label><input type="time"
+                                    id="setting_senin_rabu_masuk_mulai" value="07:30"></div>
+                            <div class="form-group"><label>Masuk Selesai</label><input type="time"
+                                    id="setting_senin_rabu_masuk_selesai" value="08:00"></div>
+                            <div class="form-group"><label>Pulang Mulai</label><input type="time"
+                                    id="setting_senin_rabu_pulang_mulai" value="12:00"></div>
+                            <div class="form-group"><label>Pulang Selesai</label><input type="time"
+                                    id="setting_senin_rabu_pulang_selesai" value="12:15"></div>
+                        </div>
+                        <h4>Jam Absensi Kamis-Jumat</h4>
+                        <div class="form-row">
+                            <div class="form-group"><label>Masuk Mulai</label><input type="time"
+                                    id="setting_kamis_jumat_masuk_mulai" value="07:30"></div>
+                            <div class="form-group"><label>Masuk Selesai</label><input type="time"
+                                    id="setting_kamis_jumat_masuk_selesai" value="08:00"></div>
+                            <div class="form-group"><label>Pulang Mulai</label><input type="time"
+                                    id="setting_kamis_jumat_pulang_mulai" value="11:30"></div>
+                            <div class="form-group"><label>Pulang Selesai</label><input type="time"
+                                    id="setting_kamis_jumat_pulang_selesai" value="11:45"></div>
+                        </div>
+                        <h4>Informasi Sekolah</h4>
+                        <div class="form-row">
+                            <div class="form-group"><label>Nama Sekolah</label><input type="text"
+                                    id="setting_school_name" placeholder="Nama Sekolah"></div>
+                        </div>
+                        <button id="saveSettingsBtn" class="btn-primary">Simpan Pengaturan</button>
+                        <div id="settingsMessage" class="message"></div>
+                    </div>
+                </div>
+
+                <div id="pageReports" class="page">
+                    <h3>Generate Laporan</h3>
+                    <div class="form-card">
+                        <div class="form-row">
+                            <div class="form-group"><label>Bulan</label><select id="reportMonth">
+                                    <option value="1">Januari</option>
+                                    <option value="2">Februari</option>
+                                    <option value="3">Maret</option>
+                                    <option value="4">April</option>
+                                    <option value="5">Mei</option>
+                                    <option value="6">Juni</option>
+                                    <option value="7">Juli</option>
+                                    <option value="8">Agustus</option>
+                                    <option value="9">September</option>
+                                    <option value="10">Oktober</option>
+                                    <option value="11">November</option>
+                                    <option value="12">Desember</option>
+                                </select></div>
+                            <div class="form-group"><label>Tahun</label><select id="reportYear"></select></div>
+                            <div class="form-group"><label>Kirim ke Email</label><input type="email" id="reportEmail"
+                                    placeholder="email@sekolah.com"></div>
+                        </div><button id="generateReportBtn" class="btn-primary"><i class="fas fa-download"></i>
+                            Generate & Kirim Laporan</button>
+                        <div id="reportMessage" class="message"></div>
+                    </div>
+                </div>
+
+                <div id="pageProfile" class="page">
+                    <h3>Profil Saya</h3>
+                    <div class="profile-card">
+                        <div class="profile-field"><label>Nama</label>
+                            <p id="profileName">-</p>
+                        </div>
+                        <div class="profile-field"><label>Email</label>
+                            <p id="profileEmail">-</p>
+                        </div>
+                        <div class="profile-field"><label>Role</label>
+                            <p id="profileRole">-</p>
+                        </div>
+                    </div>
+                    <button id="changePasswordBtn" class="btn-secondary"><i class="fas fa-key"></i> Ganti
+                        Password</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="teacherModal" class="modal">
+        <div class="modal-content"><span class="close-modal">&times;</span>
+            <h3 id="modalTitle">Tambah Guru</h3><input type="hidden" id="editEmail">
+            <div class="form-group"><label>Nama Lengkap</label><input type="text" id="teacherNama"
+                    placeholder="Nama lengkap"></div>
+            <div class="form-group"><label>Email</label><input type="email" id="teacherEmail"
+                    placeholder="email@sekolah.com"></div>
+            <div class="form-group"><label>Password</label><input type="password" id="teacherPassword"
+                    placeholder="Minimal 6 karakter"><small>*Kosongkan jika tidak mengubah password</small></div>
+            <div class="form-group"><label>Role</label><select id="teacherRole">
+                    <option value="guru">Guru</option>
+                    <option value="kepsek">Kepala Sekolah</option>
+                    <option value="admin">Admin</option>
+                </select></div>
+            <div class="form-group"><label>Status</label><select id="teacherStatus">
+                    <option value="Verified">Aktif</option>
+                    <option value="Blocked">Diblokir</option>
+                </select></div><button id="saveTeacherBtn" class="btn-primary">Simpan</button>
+            <div id="teacherModalMessage" class="message"></div>
+        </div>
+    </div>
+
+    <div id="changePasswordModal" class="modal">
+        <div class="modal-content"><span class="close-modal">&times;</span>
+            <h3>Ganti Password</h3><input type="password" id="newPassword1" placeholder="Password baru"><input
+                type="password" id="newPassword2" placeholder="Konfirmasi"><button id="confirmChangePassword"
+                class="btn-primary">Simpan</button>
+            <div id="changePwMessage" class="message"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
