@@ -3,7 +3,7 @@
 // Versi: 7.0 - WITH NO-CORS FALLBACK
 // ============================================================
 
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwt4JrNHxCeDjN5joC2p3BqYZCQWBLHvD4yt6T6v-TsSjHy7VzqpOitA0-lXEDKBx9kkA/exec";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzLHJBd47AID278iW-XmxfXZj9jIEJTtdrEYAbj6yYAw4YSSVnzOOvHkrqFMXc1MjouFA/exec";
 
 let currentUser = null;
 let stream = null;
