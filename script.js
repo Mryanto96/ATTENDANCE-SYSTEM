@@ -134,11 +134,14 @@ async function handleLogin(event) {
         sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
         showMessage('loginMessage', 'success', 'Login berhasil!');
         setTimeout(() => {
-            if (currentUser.role === 'guru') window.location.href = 'https://mryanto96.github.io/ATTENDANCE-SYSTEM/dashboard-guru.html#';
-            else if (currentUser.role === 'kepsek') window.location.href = 'https://mryanto96.github.io/ATTENDANCE-SYSTEM/dashboard-kepsek.html';
-            else if (currentUser.role === 'admin') window.location.href = 'https://mryanto96.github.io/ATTENDANCE-SYSTEM/dashboard-admin.html';
-            else window.location.href = 'https://mryanto96.github.io/ATTENDANCE-SYSTEM/index.html';
-        }, 1000);
+    let redirectUrl = '';
+    if (currentUser.role === 'guru') redirectUrl = 'dashboard-guru.html';
+    else if (currentUser.role === 'kepsek') redirectUrl = 'dashboard-kepsek.html';
+    else if (currentUser.role === 'admin') redirectUrl = 'dashboard-admin.html';
+    else redirectUrl = 'index.html';
+    
+    window.location.href = redirectUrl; // Pakai relative path
+    }, 1000);
     } else {
         showMessage('loginMessage', 'error', result.message);
         if (result.unverified) {
