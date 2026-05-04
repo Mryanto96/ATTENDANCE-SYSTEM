@@ -1,5 +1,6 @@
 // ============================================================
-// SISTEM ABSENSI DIGITAL - FRONTEND
+// SISTEM ABSENSI DIGITAL - FRONTENDclear
+
 // Versi: 7.0 - WITH NO-CORS FALLBACK
 // ============================================================
 
@@ -133,10 +134,10 @@ async function handleLogin(event) {
         sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
         showMessage('loginMessage', 'success', 'Login berhasil!');
         setTimeout(() => {
-            if (currentUser.role === 'guru') window.location.href = 'dashboard-guru.html';
-            else if (currentUser.role === 'kepsek') window.location.href = 'dashboard-kepsek.html';
-            else if (currentUser.role === 'admin') window.location.href = 'dashboard-admin.html';
-            else window.location.href = 'index.html';
+            if (currentUser.role === 'guru') window.location.href = 'https://mryanto96.github.io/ATTENDANCE-SYSTEM/dashboard-guru.html#';
+            else if (currentUser.role === 'kepsek') window.location.href = 'https://mryanto96.github.io/ATTENDANCE-SYSTEM/dashboard-kepsek.html';
+            else if (currentUser.role === 'admin') window.location.href = 'https://mryanto96.github.io/ATTENDANCE-SYSTEM/dashboard-admin.html';
+            else window.location.href = 'https://mryanto96.github.io/ATTENDANCE-SYSTEM/index.html';
         }, 1000);
     } else {
         showMessage('loginMessage', 'error', result.message);
