@@ -1,6 +1,7 @@
 // ============================================================
 // SISTEM ABSENSI DIGITAL - FRONTEND
-// Versi: 15.0 - FULLY WORKING + MOBILE FIX
+// Versi: 16.0 - HYBRID JSONP + POST FIX
+// Fix: checkIn/checkOut pakai POST (bukan JSONP) karena base64 foto terlalu besar untuk URL
 // ============================================================
 
 const API_URL = "https://script.google.com/macros/s/AKfycbxyMD3DnXpgUJ1mLKAlZYMYxkaH09GpXPHTo4rT_4mkAfnt2V4wUYNL4PJGkxD1fWiX6g/exec";
@@ -15,7 +16,7 @@ let mediaStream = null;
 let capturedPhoto = null;
 let currentLocation = null;
 
-// ==================== JSONP API CALL ====================
+// ==================== JSONP API CALL (untuk request ringan tanpa foto) ====================
 function apiCall(params) {
   return new Promise((resolve) => {
     const cbName = 'cb_' + Date.now() + '_' + Math.random().toString(36).slice(2);
@@ -25,8 +26,6 @@ function apiCall(params) {
         url += '&' + encodeURIComponent(key) + '=' + encodeURIComponent(params[key]);
       }
     }
-    
-    // Tambahkan timestamp untuk hindari cache
     url += '&_=' + Date.now();
 
     console.log('📡 JSONP Request:', url);
@@ -58,6 +57,38 @@ function apiCall(params) {
       resolve({ status: 'error', message: 'Gagal terhubung ke server. Coba lagi.' });
     };
     document.head.appendChild(script);
+  });
+}
+
+// ==================== POST API CALL (untuk checkIn/checkOut dengan foto base64) ====================
+// GAS mendukung CORS POST secara native, tidak perlu JSONP
+function apiCallPost(data) {
+  return new Promise((resolve) => {
+    const timeout = setTimeout(() => {
+      resolve({ status: 'error', message: 'Request timeout. Periksa koneksi internet Anda.' });
+    }, 30000); // Lebih lama karena ada upload foto
+
+    console.log('📡 POST Request action:', data.action);
+
+    fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+      // redirect: 'follow' penting untuk GAS yang redirect ke URL final
+      redirect: 'follow'
+    })
+      .then(res => res.json())
+      .then(result => {
+        clearTimeout(timeout);
+        console.log('✅ POST Response:', result);
+        resolve(result);
+      })
+      .catch(err => {
+        clearTimeout(timeout);
+        console.error('❌ POST Error:', err);
+        // Fallback: jika POST gagal karena CORS, coba tanpa foto via JSONP
+        resolve({ status: 'error', message: 'Gagal mengirim data. Pastikan koneksi stabil dan coba lagi.' });
+      });
   });
 }
 
@@ -404,7 +435,8 @@ function capturePhoto() {
   canvas.width = video.videoWidth || 640;
   canvas.height = video.videoHeight || 480;
   canvas.getContext('2d').drawImage(video, 0, 0);
-  capturedPhoto = canvas.toDataURL('image/jpeg', 0.75);
+  // Kualitas 0.6 untuk kurangi ukuran base64 agar lebih cepat diupload
+  capturedPhoto = canvas.toDataURL('image/jpeg', 0.6);
   
   const preview = document.getElementById('previewImg');
   const previewWrap = document.getElementById('photoPreview');
@@ -552,6 +584,7 @@ async function loadScheduleInfo() {
     </div>`;
 }
 
+// ==================== CHECK IN (pakai POST karena ada foto base64) ====================
 async function handleCheckIn() {
   if (isSubmitting) return;
   if (!capturedPhoto) { showMsg('attendMsg', 'error', 'Ambil foto selfie terlebih dahulu'); return; }
@@ -562,7 +595,8 @@ async function handleCheckIn() {
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Memproses...'; }
   showMsg('attendMsg', 'loading', 'Mengirim data absen masuk...');
   
-  const result = await apiCall({
+  // ✅ PAKAI POST — bukan JSONP — karena foto base64 terlalu besar untuk URL
+  const result = await apiCallPost({
     action: 'checkIn',
     email: currentUser.email,
     photo: capturedPhoto,
@@ -582,6 +616,7 @@ async function handleCheckIn() {
   }
 }
 
+// ==================== CHECK OUT (pakai POST karena ada foto base64) ====================
 async function handleCheckOut() {
   if (isSubmitting) return;
   if (!capturedPhoto) { showMsg('attendMsg', 'error', 'Ambil foto selfie terlebih dahulu'); return; }
@@ -592,7 +627,8 @@ async function handleCheckOut() {
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Memproses...'; }
   showMsg('attendMsg', 'loading', 'Mengirim data absen pulang...');
   
-  const result = await apiCall({
+  // ✅ PAKAI POST — bukan JSONP — karena foto base64 terlalu besar untuk URL
+  const result = await apiCallPost({
     action: 'checkOut',
     email: currentUser.email,
     photo: capturedPhoto,
@@ -954,7 +990,6 @@ function initMobileMenu() {
   const backdrop = document.getElementById('mobileBackdrop');
   
   if (hamburger && sidebar && backdrop) {
-    // Hapus event listener lama dengan clone
     const newHamburger = hamburger.cloneNode(true);
     hamburger.parentNode.replaceChild(newHamburger, hamburger);
     
@@ -963,7 +998,6 @@ function initMobileMenu() {
       e.stopPropagation();
       sidebar.classList.toggle('open');
       backdrop.classList.toggle('show');
-      console.log('Hamburger clicked - sidebar open:', sidebar.classList.contains('open'));
     });
     
     backdrop.addEventListener('click', function() {
@@ -971,7 +1005,6 @@ function initMobileMenu() {
       backdrop.classList.remove('show');
     });
     
-    // Tutup menu saat klik link di sidebar
     document.querySelectorAll('.nav-item').forEach(item => {
       item.addEventListener('click', function() {
         if (window.innerWidth <= 768) {
@@ -997,7 +1030,6 @@ function navigate(pageId) {
   const title = document.getElementById('pageTitle');
   if (title && nav) title.textContent = nav.textContent.trim();
   
-  // Tutup sidebar di mobile
   if (window.innerWidth <= 768) {
     const sidebar = document.querySelector('.sidebar');
     const backdrop = document.getElementById('mobileBackdrop');
@@ -1057,11 +1089,10 @@ function populateYears() {
 
 // ==================== INITIALIZATION ====================
 document.addEventListener('DOMContentLoaded', function() {
-  console.log('🚀 Aplikasi dimulai');
+  console.log('🚀 Aplikasi dimulai v16.0');
   updateClock();
   setInterval(updateClock, 1000);
   
-  // Initialize mobile menu
   initMobileMenu();
   
   var path = window.location.pathname;
@@ -1093,8 +1124,8 @@ document.addEventListener('DOMContentLoaded', function() {
     var openChangePw = document.getElementById('openChangePwBtn');
     if (openChangePw) openChangePw.addEventListener('click', function() { openModal('changePwModal'); });
     
-    var changePw = document.getElementById('changePwBtn');
-    if (changePw) changePw.addEventListener('click', changePassword);
+    var changePwBtn = document.getElementById('changePwBtn');
+    if (changePwBtn) changePwBtn.addEventListener('click', changePassword);
     
     if (role === 'guru') {
       var capture = document.getElementById('captureBtn');
@@ -1189,14 +1220,15 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
   
-  var sendOtp = document.getElementById('sendOtpBtn');
-  if (sendOtp) sendOtp.addEventListener('click', sendOtp);
+  // ✅ FIX: pakai nama berbeda untuk variabel elemen agar tidak bentrok dengan nama fungsi
+  var sendOtpEl = document.getElementById('sendOtpBtn');
+  if (sendOtpEl) sendOtpEl.addEventListener('click', sendOtp);
   
-  var verifyOtp = document.getElementById('verifyOtpBtn');
-  if (verifyOtp) verifyOtp.addEventListener('click', verifyOtp);
+  var verifyOtpEl = document.getElementById('verifyOtpBtn');
+  if (verifyOtpEl) verifyOtpEl.addEventListener('click', verifyOtp);
   
-  var resendOtp = document.getElementById('resendOtpBtn');
-  if (resendOtp) resendOtp.addEventListener('click', resendOtp);
+  var resendOtpEl = document.getElementById('resendOtpBtn');
+  if (resendOtpEl) resendOtpEl.addEventListener('click', resendOtp);
   
   var resetPwd = document.getElementById('resetPwdBtn');
   if (resetPwd) resetPwd.addEventListener('click', doResetPassword);
@@ -1208,5 +1240,5 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
   
-  console.log('✅ Aplikasi siap digunakan');
+  console.log('✅ Aplikasi siap digunakan v16.0');
 });
