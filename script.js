@@ -3,7 +3,7 @@
 // Versi: 14.0 - FULLY WORKING (ALL ROLES)
 // ============================================================
 
-const API_URL = "https://script.google.com/macros/s/AKfycbypYKD2bL4Cvi_UfG4XIuVMSs2YxbnBLlZF_fUCgru9PtmmEZAwcCsukvI-ffbbSm_iyQ/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbw9RcTNBBw2CtQ3Rq5BPiS61JI4N9Mn6HoWY4vgUq1vOT50AGYCVmvgm-UvVvxG2kM6jA/exec";
 
 let currentUser = null;
 let isSubmitting = false;
