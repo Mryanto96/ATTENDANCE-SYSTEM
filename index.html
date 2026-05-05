@@ -12,19 +12,19 @@
         * {
             margin: 0;
             padding: 0;
-            box-sizing: border-box
+            box-sizing: border-box;
         }
 
         :root {
-            --bg: #0f0f1a;
-            --surface: #1a1a2e;
-            --surface2: #16213e;
-            --accent: #e8c547;
-            --accent2: #f4a261;
-            --text: #f0f0f0;
-            --text2: #9ca3b0;
-            --border: #2a2a45;
-            --success: #22c55e;
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --surface2: #f1f5f9;
+            --accent: #4f46e5;
+            --accent2: #6366f1;
+            --text: #1e293b;
+            --text2: #475569;
+            --border: #e2e8f0;
+            --success: #10b981;
             --error: #ef4444;
             --info: #3b82f6;
             --radius: 12px;
@@ -32,7 +32,7 @@
 
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
-            background: var(--bg);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: var(--text);
             min-height: 100vh;
             display: flex;
@@ -40,7 +40,7 @@
             justify-content: center;
             padding: 20px;
             position: relative;
-            overflow-x: hidden
+            overflow-x: hidden;
         }
 
         body::before {
@@ -50,21 +50,21 @@
             left: -50%;
             width: 200%;
             height: 200%;
-            background: radial-gradient(ellipse at 20% 20%, rgba(232, 197, 71, .07) 0%, transparent 50%), radial-gradient(ellipse at 80% 80%, rgba(244, 162, 97, .07) 0%, transparent 50%);
+            background: radial-gradient(ellipse at 20% 20%, rgba(255, 255, 255, 0.08) 0%, transparent 50%);
             pointer-events: none;
-            z-index: 0
+            z-index: 0;
         }
 
         .container {
             width: 100%;
             max-width: 440px;
             position: relative;
-            z-index: 1
+            z-index: 1;
         }
 
         .brand {
             text-align: center;
-            margin-bottom: 32px
+            margin-bottom: 32px;
         }
 
         .brand-icon {
@@ -75,25 +75,27 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            margin-bottom: 12px
+            margin-bottom: 12px;
+            box-shadow: 0 10px 20px -5px rgba(79, 70, 229, 0.4);
         }
 
         .brand-icon svg {
             width: 28px;
             height: 28px;
-            fill: #0f0f1a
+            fill: white;
         }
 
         .brand h1 {
             font-size: 22px;
             font-weight: 700;
-            letter-spacing: -.3px
+            letter-spacing: -.3px;
+            color: white;
         }
 
         .brand p {
-            color: var(--text2);
+            color: rgba(255, 255, 255, 0.8);
             font-size: 13px;
-            margin-top: 4px
+            margin-top: 4px;
         }
 
         .card {
@@ -101,16 +103,16 @@
             border: 1px solid var(--border);
             border-radius: 20px;
             padding: 32px;
-            box-shadow: 0 24px 80px rgba(0, 0, 0, .4)
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.15);
         }
 
         .tabs {
             display: flex;
-            background: var(--bg);
+            background: var(--surface2);
             border-radius: 10px;
             padding: 4px;
             margin-bottom: 28px;
-            gap: 4px
+            gap: 4px;
         }
 
         .tab {
@@ -124,25 +126,26 @@
             border: none;
             background: transparent;
             color: var(--text2);
-            transition: all .2s
+            transition: all 0.2s;
         }
 
         .tab.active {
-            background: var(--surface2);
-            color: var(--text);
-            border: 1px solid var(--border)
+            background: white;
+            color: var(--accent);
+            border: 1px solid var(--border);
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
         }
 
         .form {
-            display: none
+            display: none;
         }
 
         .form.active {
-            display: block
+            display: block;
         }
 
         .field {
-            margin-bottom: 18px
+            margin-bottom: 18px;
         }
 
         .field label {
@@ -152,14 +155,14 @@
             color: var(--text2);
             text-transform: uppercase;
             letter-spacing: .5px;
-            margin-bottom: 7px
+            margin-bottom: 7px;
         }
 
         .field input,
         .field select {
             width: 100%;
             padding: 12px 14px;
-            background: var(--bg);
+            background: var(--surface2);
             border: 1px solid var(--border);
             border-radius: var(--radius);
             color: var(--text);
@@ -167,31 +170,32 @@
             font-family: inherit;
             transition: border-color .2s, box-shadow .2s;
             outline: none;
-            appearance: none
+            appearance: none;
         }
 
         .field input:focus,
         .field select:focus {
             border-color: var(--accent);
-            box-shadow: 0 0 0 3px rgba(232, 197, 71, .12)
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+            background: white;
         }
 
         .field select option {
-            background: var(--surface)
+            background: white;
         }
 
         .field small {
             display: block;
             color: var(--text2);
             font-size: 11px;
-            margin-top: 5px
+            margin-top: 5px;
         }
 
         .row {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px
+            margin-bottom: 20px;
         }
 
         .remember {
@@ -200,13 +204,13 @@
             gap: 7px;
             font-size: 13px;
             cursor: pointer;
-            color: var(--text2)
+            color: var(--text2);
         }
 
         .remember input {
             accent-color: var(--accent);
             width: 15px;
-            height: 15px
+            height: 15px;
         }
 
         .link {
@@ -217,40 +221,39 @@
             border: none;
             cursor: pointer;
             font-family: inherit;
-            font-weight: 500
+            font-weight: 500;
         }
 
         .link:hover {
-            text-decoration: underline
+            text-decoration: underline;
         }
 
         .btn {
             width: 100%;
             padding: 13px;
             background: linear-gradient(135deg, var(--accent), var(--accent2));
-            color: #0f0f1a;
+            color: white;
             border: none;
             border-radius: var(--radius);
             font-size: 15px;
             font-weight: 700;
             cursor: pointer;
-            transition: opacity .2s, transform .1s;
+            transition: all 0.2s;
             font-family: inherit;
-            position: relative;
-            overflow: hidden
         }
 
         .btn:hover {
-            opacity: .92
+            transform: translateY(-1px);
+            box-shadow: 0 10px 20px -5px rgba(79, 70, 229, 0.4);
         }
 
         .btn:active {
-            transform: scale(.99)
+            transform: scale(0.98);
         }
 
         .btn:disabled {
-            opacity: .5;
-            cursor: not-allowed
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
         .msg {
@@ -258,57 +261,57 @@
             padding: 11px 14px;
             border-radius: 9px;
             font-size: 13px;
-            display: none
+            display: none;
         }
 
         .msg.show {
-            display: block
+            display: block;
         }
 
         .msg.success {
-            background: rgba(34, 197, 94, .12);
-            color: #4ade80;
-            border: 1px solid rgba(34, 197, 94, .2)
+            background: rgba(16, 185, 129, 0.1);
+            color: #059669;
+            border: 1px solid rgba(16, 185, 129, 0.2);
         }
 
         .msg.error {
-            background: rgba(239, 68, 68, .12);
-            color: #f87171;
-            border: 1px solid rgba(239, 68, 68, .2)
+            background: rgba(239, 68, 68, 0.1);
+            color: #dc2626;
+            border: 1px solid rgba(239, 68, 68, 0.2);
         }
 
         .msg.loading {
-            background: rgba(59, 130, 246, .12);
-            color: #60a5fa;
-            border: 1px solid rgba(59, 130, 246, .2)
+            background: rgba(59, 130, 246, 0.1);
+            color: #2563eb;
+            border: 1px solid rgba(59, 130, 246, 0.2);
         }
 
         .resend-wrap {
             display: none;
             margin-top: 10px;
-            text-align: center
+            text-align: center;
         }
 
         .divider {
             height: 1px;
             background: var(--border);
-            margin: 20px 0
+            margin: 20px 0;
         }
 
         .modal-overlay {
             display: none;
             position: fixed;
             inset: 0;
-            background: rgba(0, 0, 0, .7);
+            background: rgba(0, 0, 0, 0.5);
             z-index: 100;
             align-items: center;
             justify-content: center;
             padding: 20px;
-            backdrop-filter: blur(4px)
+            backdrop-filter: blur(4px);
         }
 
         .modal-overlay.open {
-            display: flex
+            display: flex;
         }
 
         .modal {
@@ -318,23 +321,24 @@
             padding: 28px;
             width: 100%;
             max-width: 400px;
-            position: relative
+            position: relative;
         }
 
         .modal-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px
+            margin-bottom: 20px;
         }
 
         .modal-title {
             font-size: 17px;
-            font-weight: 700
+            font-weight: 700;
+            color: var(--text);
         }
 
         .close-btn {
-            background: var(--bg);
+            background: var(--surface2);
             border: 1px solid var(--border);
             border-radius: 8px;
             width: 30px;
@@ -345,46 +349,46 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: color .2s;
-            line-height: 1
+            transition: all 0.2s;
         }
 
         .close-btn:hover {
-            color: var(--text)
+            background: var(--border);
+            color: var(--text);
         }
 
         .step {
-            display: none
+            display: none;
         }
 
         .step.active {
-            display: block
+            display: block;
         }
 
         .step p {
             color: var(--text2);
             font-size: 13px;
-            margin-bottom: 14px
+            margin-bottom: 14px;
         }
 
         .timer {
             font-size: 12px;
             color: var(--error);
-            margin: 8px 0
+            margin: 8px 0;
         }
 
         .otp-actions {
             display: flex;
             gap: 10px;
-            margin-top: 10px
+            margin-top: 10px;
         }
 
         .otp-actions .btn {
-            flex: 1
+            flex: 1;
         }
 
         .btn-ghost {
-            background: var(--bg);
+            background: var(--surface2);
             color: var(--text);
             border: 1px solid var(--border);
             width: 100%;
@@ -394,11 +398,22 @@
             font-weight: 500;
             cursor: pointer;
             font-family: inherit;
-            transition: border-color .2s
+            transition: all 0.2s;
         }
 
         .btn-ghost:hover {
-            border-color: var(--text2)
+            border-color: var(--accent);
+            background: white;
+        }
+
+        @media (max-width: 480px) {
+            .card {
+                padding: 24px;
+            }
+
+            .brand h1 {
+                font-size: 20px;
+            }
         }
     </style>
 </head>

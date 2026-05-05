@@ -4,7 +4,7 @@
 // Fix: checkIn/checkOut pakai POST (bukan JSONP) karena base64 foto terlalu besar untuk URL
 // ============================================================
 
-const API_URL = "https://script.google.com/macros/s/AKfycbwRJV3hv6WWOn3uCMKtZnl7VRo7ui8rVw_4SL1eBR0bgG7bXrPjcIdgMGR3fqmfIltwKA/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwLfkankH_sGgc9gGib4EnMnvpnrYmg5gfG3NBmsDKQ-mwxQpaSiQEPOyyl7foJd8rqrg/exec";
 
 let currentUser = null;
 let isSubmitting = false;
