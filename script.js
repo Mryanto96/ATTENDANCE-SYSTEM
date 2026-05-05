@@ -1,9 +1,9 @@
 // ============================================================
 // SISTEM ABSENSI DIGITAL - FRONTEND
-// Versi: 14.0 - FULLY WORKING (ALL ROLES)
+// Versi: 15.0 - FULLY WORKING + MOBILE FIX
 // ============================================================
 
-const API_URL = "https://script.google.com/macros/s/AKfycbw9RcTNBBw2CtQ3Rq5BPiS61JI4N9Mn6HoWY4vgUq1vOT50AGYCVmvgm-UvVvxG2kM6jA/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxyMD3DnXpgUJ1mLKAlZYMYxkaH09GpXPHTo4rT_4mkAfnt2V4wUYNL4PJGkxD1fWiX6g/exec";
 
 let currentUser = null;
 let isSubmitting = false;
@@ -25,11 +25,16 @@ function apiCall(params) {
         url += '&' + encodeURIComponent(key) + '=' + encodeURIComponent(params[key]);
       }
     }
+    
+    // Tambahkan timestamp untuk hindari cache
+    url += '&_=' + Date.now();
+
+    console.log('📡 JSONP Request:', url);
 
     const timeout = setTimeout(() => {
       cleanup();
       resolve({ status: 'error', message: 'Request timeout. Periksa koneksi internet Anda.' });
-    }, 30000);
+    }, 20000);
 
     function cleanup() {
       clearTimeout(timeout);
@@ -39,6 +44,7 @@ function apiCall(params) {
     }
 
     window[cbName] = function(data) {
+      console.log('✅ JSONP Response:', data);
       cleanup();
       resolve(data);
     };
@@ -47,6 +53,7 @@ function apiCall(params) {
     script.id = cbName;
     script.src = url;
     script.onerror = function() {
+      console.error('❌ JSONP Error:', url);
       cleanup();
       resolve({ status: 'error', message: 'Gagal terhubung ke server. Coba lagi.' });
     };
@@ -60,6 +67,13 @@ function showMsg(id, type, text) {
   if (!el) return;
   el.className = 'msg ' + type + ' show';
   el.textContent = text;
+  setTimeout(() => {
+    if (el.classList.contains('show')) {
+      el.classList.remove('show');
+      el.className = 'msg';
+      el.textContent = '';
+    }
+  }, 5000);
 }
 
 function hideMsg(id) {
@@ -712,14 +726,7 @@ window.viewTeacherAttendance = async function(email) {
   document.getElementById('teacherDetailEmail').textContent = email;
   
   if (r.status === 'success' && r.data && r.data.length > 0) {
-    detContent.innerHTML = `
-      <div class="table-wrap">
-        <table class="data-table">
-          <thead><tr><th>Tanggal</th><th>Check In</th><th>Check Out</th><th>Lokasi</th></tr></thead>
-          <tbody>${r.data.map(d => `<tr><td>${formatDate(d.tanggal)}</td><td>${d.checkIn||'-'}</td><td>${d.checkOut||'-'}</td><td>${d.lokasi||'-'}</td></tr>`).join('')}</tbody>
-        </table>
-      </div>
-    `;
+    detContent.innerHTML = '<div class="table-wrap"><table class="data-table"><thead><tr><th>Tanggal</th><th>Check In</th><th>Check Out</th><th>Lokasi</th></tr></thead><tbody>' + r.data.map(d => '<tr><td>' + formatDate(d.tanggal) + '</td><td>' + (d.checkIn||'-') + '</td><td>' + (d.checkOut||'-') + '</td><td>' + (d.lokasi||'-') + '</td></tr>').join('') + '</tbody></table></div>';
   } else {
     detContent.innerHTML = '<div class="empty-state"><span class="icon">📭</span>Belum ada data absensi bulan ini</div>';
   }
@@ -821,15 +828,7 @@ async function loadLocations() {
   const r = await apiCall({ action: 'getLocations' });
   if (!tbody) return;
   if (r.status === 'success' && r.data && r.data.length > 0) {
-    tbody.innerHTML = r.data.map(loc => `
-      <tr>
-        <td><strong>${loc.nama_kelas}</strong></td>
-        <td>${loc.lat}</td>
-        <td>${loc.lng}</td>
-        <td><span class="badge badge-info">${loc.radius_meter} m</span></td>
-        <td><button class="btn-danger btn-sm" onclick="alert('Hapus lokasi: ${loc.nama_kelas} (implementasi nanti)')">🗑️ Hapus</button></td>
-      </tr>
-    `).join('');
+    tbody.innerHTML = r.data.map(loc => '<tr><td><strong>' + loc.nama_kelas + '</strong></td><td>' + loc.lat + '</td><td>' + loc.lng + '</td><td><span class="badge badge-info">' + loc.radius_meter + ' m</span></td><td><button class="btn-danger btn-sm" onclick="alert(\'Hapus lokasi: ' + loc.nama_kelas + ' (implementasi nanti)\')">🗑️ Hapus</button></td></tr>').join('');
   } else {
     tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Belum ada lokasi terdaftar</td></tr>';
   }
@@ -948,6 +947,42 @@ function closeModal(id) {
   if (el) el.classList.remove('open');
 }
 
+// ==================== MOBILE MENU FIX ====================
+function initMobileMenu() {
+  const hamburger = document.getElementById('hamburger');
+  const sidebar = document.querySelector('.sidebar');
+  const backdrop = document.getElementById('mobileBackdrop');
+  
+  if (hamburger && sidebar && backdrop) {
+    // Hapus event listener lama dengan clone
+    const newHamburger = hamburger.cloneNode(true);
+    hamburger.parentNode.replaceChild(newHamburger, hamburger);
+    
+    newHamburger.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      sidebar.classList.toggle('open');
+      backdrop.classList.toggle('show');
+      console.log('Hamburger clicked - sidebar open:', sidebar.classList.contains('open'));
+    });
+    
+    backdrop.addEventListener('click', function() {
+      sidebar.classList.remove('open');
+      backdrop.classList.remove('show');
+    });
+    
+    // Tutup menu saat klik link di sidebar
+    document.querySelectorAll('.nav-item').forEach(item => {
+      item.addEventListener('click', function() {
+        if (window.innerWidth <= 768) {
+          sidebar.classList.remove('open');
+          backdrop.classList.remove('show');
+        }
+      });
+    });
+  }
+}
+
 // ==================== NAVIGATION ====================
 function navigate(pageId) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -956,23 +991,28 @@ function navigate(pageId) {
   const page = document.getElementById('page' + pageId);
   if (page) page.classList.add('active');
   
-  const nav = document.querySelector(`.nav-item[data-page="${pageId}"]`);
+  const nav = document.querySelector('.nav-item[data-page="' + pageId + '"]');
   if (nav) nav.classList.add('active');
   
   const title = document.getElementById('pageTitle');
   if (title && nav) title.textContent = nav.textContent.trim();
   
-  document.querySelector('.sidebar')?.classList.remove('open');
-  document.getElementById('mobileBackdrop')?.classList.remove('show');
+  // Tutup sidebar di mobile
+  if (window.innerWidth <= 768) {
+    const sidebar = document.querySelector('.sidebar');
+    const backdrop = document.getElementById('mobileBackdrop');
+    if (sidebar) sidebar.classList.remove('open');
+    if (backdrop) backdrop.classList.remove('show');
+  }
   
   if (pageId === 'Dashboard') {
     loadDashboardStats();
-    if (currentUser?.role === 'guru') {
+    if (currentUser && currentUser.role === 'guru') {
       loadTodayStatus();
       loadScheduleInfo();
     }
   } else if (pageId === 'Attendance') {
-    setTimeout(() => { initCamera(); loadTodayStatus(); }, 100);
+    setTimeout(function() { initCamera(); loadTodayStatus(); }, 100);
   } else if (pageId === 'History') {
     loadHistory();
   } else if (pageId === 'Teachers') {
@@ -986,36 +1026,51 @@ function navigate(pageId) {
 
 // ==================== YEAR SELECT ====================
 function populateYears() {
-  ['histYear', 'repYear'].forEach(id => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    const y = new Date().getFullYear();
-    for (let yr = y-2; yr <= y+1; yr++) {
-      const opt = document.createElement('option');
-      opt.value = yr; opt.textContent = yr;
+  var yearEl = document.getElementById('histYear');
+  if (yearEl) {
+    var y = new Date().getFullYear();
+    for (var yr = y-2; yr <= y+1; yr++) {
+      var opt = document.createElement('option');
+      opt.value = yr;
+      opt.textContent = yr;
       if (yr === y) opt.selected = true;
-      el.appendChild(opt);
+      yearEl.appendChild(opt);
     }
-  });
-  ['histMonth', 'repMonth'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.value = new Date().getMonth() + 1;
-  });
+  }
+  var repYear = document.getElementById('repYear');
+  if (repYear) {
+    var y2 = new Date().getFullYear();
+    for (var yr2 = y2-2; yr2 <= y2+1; yr2++) {
+      var opt2 = document.createElement('option');
+      opt2.value = yr2;
+      opt2.textContent = yr2;
+      if (yr2 === y2) opt2.selected = true;
+      repYear.appendChild(opt2);
+    }
+  }
+  
+  var histMonth = document.getElementById('histMonth');
+  if (histMonth) histMonth.value = new Date().getMonth() + 1;
+  var repMonth = document.getElementById('repMonth');
+  if (repMonth) repMonth.value = new Date().getMonth() + 1;
 }
 
 // ==================== INITIALIZATION ====================
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', function() {
   console.log('🚀 Aplikasi dimulai');
   updateClock();
   setInterval(updateClock, 1000);
   
-  const path = window.location.pathname;
-  const isDashboard = path.includes('dashboard-');
+  // Initialize mobile menu
+  initMobileMenu();
+  
+  var path = window.location.pathname;
+  var isDashboard = path.includes('dashboard-');
   
   if (isDashboard) {
     if (!checkAuth()) { window.location.href = 'index.html'; return; }
     
-    const role = currentUser.role;
+    var role = currentUser.role;
     if (path.includes('dashboard-guru') && role !== 'guru') { window.location.href = 'index.html'; return; }
     if (path.includes('dashboard-kepsek') && role !== 'kepsek') { window.location.href = 'index.html'; return; }
     if (path.includes('dashboard-admin') && role !== 'admin') { window.location.href = 'index.html'; return; }
@@ -1025,47 +1080,71 @@ document.addEventListener('DOMContentLoaded', () => {
     loadDashboardStats();
     if (role === 'guru') { loadScheduleInfo(); loadTodayStatus(); }
     
-    document.querySelectorAll('.nav-item').forEach(item => {
-      item.addEventListener('click', (e) => {
+    document.querySelectorAll('.nav-item').forEach(function(item) {
+      item.addEventListener('click', function(e) {
         e.preventDefault();
-        navigate(item.dataset.page);
+        navigate(item.getAttribute('data-page'));
       });
     });
     
-    document.getElementById('logoutBtn')?.addEventListener('click', logout);
+    var logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) logoutBtn.addEventListener('click', logout);
     
-    document.getElementById('openChangePwBtn')?.addEventListener('click', () => openModal('changePwModal'));
-    document.getElementById('changePwBtn')?.addEventListener('click', changePassword);
+    var openChangePw = document.getElementById('openChangePwBtn');
+    if (openChangePw) openChangePw.addEventListener('click', function() { openModal('changePwModal'); });
+    
+    var changePw = document.getElementById('changePwBtn');
+    if (changePw) changePw.addEventListener('click', changePassword);
     
     if (role === 'guru') {
-      document.getElementById('captureBtn')?.addEventListener('click', capturePhoto);
-      document.getElementById('retakeBtn')?.addEventListener('click', retakePhoto);
-      document.getElementById('getLocBtn')?.addEventListener('click', getLocation);
-      document.getElementById('checkInBtn')?.addEventListener('click', handleCheckIn);
-      document.getElementById('checkOutBtn')?.addEventListener('click', handleCheckOut);
-      document.getElementById('quickCheckInBtn')?.addEventListener('click', () => navigate('Attendance'));
-      document.getElementById('quickCheckOutBtn')?.addEventListener('click', () => navigate('Attendance'));
-      document.getElementById('loadHistBtn')?.addEventListener('click', loadHistory);
+      var capture = document.getElementById('captureBtn');
+      if (capture) capture.addEventListener('click', capturePhoto);
+      var retake = document.getElementById('retakeBtn');
+      if (retake) retake.addEventListener('click', retakePhoto);
+      var getLoc = document.getElementById('getLocBtn');
+      if (getLoc) getLoc.addEventListener('click', getLocation);
+      var checkIn = document.getElementById('checkInBtn');
+      if (checkIn) checkIn.addEventListener('click', handleCheckIn);
+      var checkOut = document.getElementById('checkOutBtn');
+      if (checkOut) checkOut.addEventListener('click', handleCheckOut);
+      var quickIn = document.getElementById('quickCheckInBtn');
+      if (quickIn) quickIn.addEventListener('click', function() { navigate('Attendance'); });
+      var quickOut = document.getElementById('quickCheckOutBtn');
+      if (quickOut) quickOut.addEventListener('click', function() { navigate('Attendance'); });
+      var loadHist = document.getElementById('loadHistBtn');
+      if (loadHist) loadHist.addEventListener('click', loadHistory);
     }
     
     if (role === 'kepsek') {
-      document.getElementById('searchTeacher')?.addEventListener('input', loadAllTeachers);
-      document.getElementById('genRepBtn')?.addEventListener('click', generateReport);
-      document.getElementById('closeDetailBtn')?.addEventListener('click', () => {
+      var search = document.getElementById('searchTeacher');
+      if (search) search.addEventListener('input', loadAllTeachers);
+      var genRep = document.getElementById('genRepBtn');
+      if (genRep) genRep.addEventListener('click', generateReport);
+      var closeDetail = document.getElementById('closeDetailBtn');
+      if (closeDetail) closeDetail.addEventListener('click', function() {
         document.getElementById('teacherDetail').style.display = 'none';
       });
     }
     
     if (role === 'admin') {
-      document.getElementById('searchTeacher')?.addEventListener('input', loadAllTeachers);
-      document.getElementById('filterRole')?.addEventListener('change', loadAllTeachers);
-      document.getElementById('addTeacherBtn')?.addEventListener('click', openAddTeacher);
-      document.getElementById('saveAddBtn')?.addEventListener('click', saveAddTeacher);
-      document.getElementById('saveEditBtn')?.addEventListener('click', saveEditTeacher);
-      document.getElementById('addLocBtn')?.addEventListener('click', addLocation);
-      document.getElementById('saveSetBtn')?.addEventListener('click', saveSettings);
-      document.getElementById('genRepBtn')?.addEventListener('click', generateReport);
-      document.getElementById('closeDetailBtn')?.addEventListener('click', () => {
+      var search2 = document.getElementById('searchTeacher');
+      if (search2) search2.addEventListener('input', loadAllTeachers);
+      var filterRole = document.getElementById('filterRole');
+      if (filterRole) filterRole.addEventListener('change', loadAllTeachers);
+      var addTeacher = document.getElementById('addTeacherBtn');
+      if (addTeacher) addTeacher.addEventListener('click', openAddTeacher);
+      var saveAdd = document.getElementById('saveAddBtn');
+      if (saveAdd) saveAdd.addEventListener('click', saveAddTeacher);
+      var saveEdit = document.getElementById('saveEditBtn');
+      if (saveEdit) saveEdit.addEventListener('click', saveEditTeacher);
+      var addLoc = document.getElementById('addLocBtn');
+      if (addLoc) addLoc.addEventListener('click', addLocation);
+      var saveSet = document.getElementById('saveSetBtn');
+      if (saveSet) saveSet.addEventListener('click', saveSettings);
+      var genRep2 = document.getElementById('genRepBtn');
+      if (genRep2) genRep2.addEventListener('click', generateReport);
+      var closeDetail2 = document.getElementById('closeDetailBtn');
+      if (closeDetail2) closeDetail2.addEventListener('click', function() {
         document.getElementById('teacherDetail').style.display = 'none';
       });
     }
@@ -1077,32 +1156,57 @@ document.addEventListener('DOMContentLoaded', () => {
   // ===== HALAMAN INDEX (LOGIN/REGISTER) =====
   loadSchoolName();
   
-  document.querySelectorAll('.tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      const target = tab.dataset.tab;
-      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      document.querySelectorAll('.form').forEach(f => f.classList.remove('active'));
-      document.getElementById(target + 'Form').classList.add('active');
+  document.querySelectorAll('.tab').forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      var target = this.getAttribute('data-tab');
+      document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+      this.classList.add('active');
+      document.querySelectorAll('.form').forEach(function(f) { f.classList.remove('active'); });
+      var form = document.getElementById(target + 'Form');
+      if (form) form.classList.add('active');
     });
   });
   
-  document.getElementById('loginBtn')?.addEventListener('click', handleLogin);
-  document.getElementById('registerBtn')?.addEventListener('click', handleRegister);
-  document.getElementById('resendVerifBtn')?.addEventListener('click', resendVerif);
-  document.getElementById('forgotBtn')?.addEventListener('click', openForgotModal);
-  document.getElementById('closeForgotBtn')?.addEventListener('click', closeForgotModal);
-  document.getElementById('forgotModal')?.addEventListener('click', (e) => {
-    if (e.target === document.getElementById('forgotModal')) closeForgotModal();
-  });
-  document.getElementById('sendOtpBtn')?.addEventListener('click', sendOtp);
-  document.getElementById('verifyOtpBtn')?.addEventListener('click', verifyOtp);
-  document.getElementById('resendOtpBtn')?.addEventListener('click', resendOtp);
-  document.getElementById('resetPwdBtn')?.addEventListener('click', doResetPassword);
+  var loginBtn = document.getElementById('loginBtn');
+  if (loginBtn) loginBtn.addEventListener('click', handleLogin);
   
-  document.getElementById('loginPassword')?.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') handleLogin(e);
-  });
+  var registerBtn = document.getElementById('registerBtn');
+  if (registerBtn) registerBtn.addEventListener('click', handleRegister);
+  
+  var resendBtn = document.getElementById('resendVerifBtn');
+  if (resendBtn) resendBtn.addEventListener('click', resendVerif);
+  
+  var forgotBtn = document.getElementById('forgotBtn');
+  if (forgotBtn) forgotBtn.addEventListener('click', openForgotModal);
+  
+  var closeForgot = document.getElementById('closeForgotBtn');
+  if (closeForgot) closeForgot.addEventListener('click', closeForgotModal);
+  
+  var forgotModal = document.getElementById('forgotModal');
+  if (forgotModal) {
+    forgotModal.addEventListener('click', function(e) {
+      if (e.target === forgotModal) closeForgotModal();
+    });
+  }
+  
+  var sendOtp = document.getElementById('sendOtpBtn');
+  if (sendOtp) sendOtp.addEventListener('click', sendOtp);
+  
+  var verifyOtp = document.getElementById('verifyOtpBtn');
+  if (verifyOtp) verifyOtp.addEventListener('click', verifyOtp);
+  
+  var resendOtp = document.getElementById('resendOtpBtn');
+  if (resendOtp) resendOtp.addEventListener('click', resendOtp);
+  
+  var resetPwd = document.getElementById('resetPwdBtn');
+  if (resetPwd) resetPwd.addEventListener('click', doResetPassword);
+  
+  var loginPassword = document.getElementById('loginPassword');
+  if (loginPassword) {
+    loginPassword.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') handleLogin(e);
+    });
+  }
   
   console.log('✅ Aplikasi siap digunakan');
 });
