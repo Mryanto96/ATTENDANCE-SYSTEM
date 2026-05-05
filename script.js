@@ -72,9 +72,9 @@ function apiCallPost(data) {
 
     fetch(API_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      // TANPA Content-Type header — ini kunci agar GAS tidak kena CORS preflight
+      // Sama persis dengan cara kerja blog yang sudah berjalan
       body: JSON.stringify(data),
-      // redirect: 'follow' penting untuk GAS yang redirect ke URL final
       redirect: 'follow'
     })
       .then(res => res.json())
