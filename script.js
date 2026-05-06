@@ -796,7 +796,7 @@ async function loadKepsekScheduleInfo() {
   const r = await apiCall({ action: 'getSettings' });
   if (r.status !== 'success') return;
   const s = r.data;
-  const el = document.getElementById('kepsekScheduleInfo');
+  const el = document.getElementById('scheduleInfo');
   if (!el) return;
 
   const jadwalSeninRabu = {
