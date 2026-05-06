@@ -3,520 +3,196 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Absensi Digital</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Absensi Digital - Masuk & Daftar</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
         rel="stylesheet">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        :root {
-            --bg: #f8fafc;
-            --surface: #ffffff;
-            --surface2: #f1f5f9;
-            --accent: #4f46e5;
-            --accent2: #6366f1;
-            --text: #1e293b;
-            --text2: #475569;
-            --border: #e2e8f0;
-            --success: #10b981;
-            --error: #ef4444;
-            --info: #3b82f6;
-            --radius: 12px;
-        }
-
-        body {
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: var(--text);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            position: relative;
-            overflow-x: hidden;
-        }
-
-        body::before {
-            content: '';
-            position: fixed;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(ellipse at 20% 20%, rgba(255, 255, 255, 0.08) 0%, transparent 50%);
-            pointer-events: none;
-            z-index: 0;
-        }
-
-        .container {
-            width: 100%;
-            max-width: 440px;
-            position: relative;
-            z-index: 1;
-        }
-
-        .brand {
-            text-align: center;
-            margin-bottom: 32px;
-        }
-
-        .brand-icon {
-            width: 56px;
-            height: 56px;
-            background: linear-gradient(135deg, var(--accent), var(--accent2));
-            border-radius: 16px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 12px;
-            box-shadow: 0 10px 20px -5px rgba(79, 70, 229, 0.4);
-        }
-
-        .brand-icon svg {
-            width: 28px;
-            height: 28px;
-            fill: white;
-        }
-
-        .brand h1 {
-            font-size: 22px;
-            font-weight: 700;
-            letter-spacing: -.3px;
-            color: white;
-        }
-
-        .brand p {
-            color: rgba(255, 255, 255, 0.8);
-            font-size: 13px;
-            margin-top: 4px;
-        }
-
-        .card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 20px;
-            padding: 32px;
-            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.15);
-        }
-
-        .tabs {
-            display: flex;
-            background: var(--surface2);
-            border-radius: 10px;
-            padding: 4px;
-            margin-bottom: 28px;
-            gap: 4px;
-        }
-
-        .tab {
-            flex: 1;
-            padding: 9px;
-            text-align: center;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            border: none;
-            background: transparent;
-            color: var(--text2);
-            transition: all 0.2s;
-        }
-
-        .tab.active {
-            background: white;
-            color: var(--accent);
-            border: 1px solid var(--border);
-            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-        }
-
-        .form {
-            display: none;
-        }
-
-        .form.active {
-            display: block;
-        }
-
-        .field {
-            margin-bottom: 18px;
-        }
-
-        .field label {
-            display: block;
-            font-size: 12px;
-            font-weight: 600;
-            color: var(--text2);
-            text-transform: uppercase;
-            letter-spacing: .5px;
-            margin-bottom: 7px;
-        }
-
-        .field input,
-        .field select {
-            width: 100%;
-            padding: 12px 14px;
-            background: var(--surface2);
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            color: var(--text);
-            font-size: 14px;
-            font-family: inherit;
-            transition: border-color .2s, box-shadow .2s;
-            outline: none;
-            appearance: none;
-        }
-
-        .field input:focus,
-        .field select:focus {
-            border-color: var(--accent);
-            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
-            background: white;
-        }
-
-        .field select option {
-            background: white;
-        }
-
-        .field small {
-            display: block;
-            color: var(--text2);
-            font-size: 11px;
-            margin-top: 5px;
-        }
-
-        .row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .remember {
-            display: flex;
-            align-items: center;
-            gap: 7px;
-            font-size: 13px;
-            cursor: pointer;
-            color: var(--text2);
-        }
-
-        .remember input {
-            accent-color: var(--accent);
-            width: 15px;
-            height: 15px;
-        }
-
-        .link {
-            color: var(--accent);
-            font-size: 13px;
-            text-decoration: none;
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-family: inherit;
-            font-weight: 500;
-        }
-
-        .link:hover {
-            text-decoration: underline;
-        }
-
-        .btn {
-            width: 100%;
-            padding: 13px;
-            background: linear-gradient(135deg, var(--accent), var(--accent2));
-            color: white;
-            border: none;
-            border-radius: var(--radius);
-            font-size: 15px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-family: inherit;
-        }
-
-        .btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 10px 20px -5px rgba(79, 70, 229, 0.4);
-        }
-
-        .btn:active {
-            transform: scale(0.98);
-        }
-
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .msg {
-            margin-top: 14px;
-            padding: 11px 14px;
-            border-radius: 9px;
-            font-size: 13px;
-            display: none;
-        }
-
-        .msg.show {
-            display: block;
-        }
-
-        .msg.success {
-            background: rgba(16, 185, 129, 0.1);
-            color: #059669;
-            border: 1px solid rgba(16, 185, 129, 0.2);
-        }
-
-        .msg.error {
-            background: rgba(239, 68, 68, 0.1);
-            color: #dc2626;
-            border: 1px solid rgba(239, 68, 68, 0.2);
-        }
-
-        .msg.loading {
-            background: rgba(59, 130, 246, 0.1);
-            color: #2563eb;
-            border: 1px solid rgba(59, 130, 246, 0.2);
-        }
-
-        .resend-wrap {
-            display: none;
-            margin-top: 10px;
-            text-align: center;
-        }
-
-        .divider {
-            height: 1px;
-            background: var(--border);
-            margin: 20px 0;
-        }
-
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 100;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            backdrop-filter: blur(4px);
-        }
-
-        .modal-overlay.open {
-            display: flex;
-        }
-
-        .modal {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 20px;
-            padding: 28px;
-            width: 100%;
-            max-width: 400px;
-            position: relative;
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .modal-title {
-            font-size: 17px;
-            font-weight: 700;
-            color: var(--text);
-        }
-
-        .close-btn {
-            background: var(--surface2);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            width: 30px;
-            height: 30px;
-            cursor: pointer;
-            color: var(--text2);
-            font-size: 18px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s;
-        }
-
-        .close-btn:hover {
-            background: var(--border);
-            color: var(--text);
-        }
-
-        .step {
-            display: none;
-        }
-
-        .step.active {
-            display: block;
-        }
-
-        .step p {
-            color: var(--text2);
-            font-size: 13px;
-            margin-bottom: 14px;
-        }
-
-        .timer {
-            font-size: 12px;
-            color: var(--error);
-            margin: 8px 0;
-        }
-
-        .otp-actions {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
-        }
-
-        .otp-actions .btn {
-            flex: 1;
-        }
-
-        .btn-ghost {
-            background: var(--surface2);
-            color: var(--text);
-            border: 1px solid var(--border);
-            width: 100%;
-            padding: 11px;
-            border-radius: var(--radius);
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            font-family: inherit;
-            transition: all 0.2s;
-        }
-
-        .btn-ghost:hover {
-            border-color: var(--accent);
-            background: white;
-        }
-
-        @media (max-width: 480px) {
-            .card {
-                padding: 24px;
-            }
-
-            .brand h1 {
-                font-size: 20px;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 
-<body>
-    <div class="container">
-        <div class="brand">
-            <div class="brand-icon">
-                <svg viewBox="0 0 24 24">
-                    <path
-                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z" />
-                </svg>
+<body class="auth-body">
+    <div class="auth-container-two" id="authContainer">
+        <!-- SISI KIRI: FORM (LOGIN & REGISTER) -->
+        <div class="auth-form-side" id="formSide">
+            <div class="auth-brand">
+                <div class="auth-logo">
+                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5">
+                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                    </svg>
+                </div>
+                <h1>Absensi Digital</h1>
+                <p>SMP Negeri Pulau Tiga</p>
             </div>
-            <h1>Absensi Digital</h1>
-            <p id="schoolName">Sistem Kehadiran Sekolah</p>
+
+            <!-- TAB SWITCH -->
+            <div class="auth-tabs-two">
+                <button class="tab-two active" data-tab="login">Masuk</button>
+                <button class="tab-two" data-tab="register">Daftar</button>
+            </div>
+
+            <!-- FORM LOGIN -->
+            <div id="loginForm" class="form-two active">
+                <div class="field-two">
+                    <label>Email</label>
+                    <div class="input-icon-two">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                            <polyline points="22,6 12,13 2,6" />
+                        </svg>
+                        <input type="email" id="loginEmail" placeholder="email@sekolah.com" autocomplete="email">
+                    </div>
+                </div>
+                <div class="field-two">
+                    <label>Password</label>
+                    <div class="input-icon-two">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                        </svg>
+                        <input type="password" id="loginPassword" placeholder="Kata sandi"
+                            autocomplete="current-password">
+                    </div>
+                </div>
+                <div class="options-two">
+                    <label class="checkbox-two">
+                        <input type="checkbox" id="rememberMe"> Ingat saya
+                    </label>
+                    <button class="link-two" id="forgotBtn">Lupa password?</button>
+                </div>
+                <button class="btn-two" id="loginBtn">Masuk</button>
+                <div class="msg-two" id="loginMsg"></div>
+                <div class="resend-wrap-two" id="resendWrap">
+                    <button class="link-two" id="resendVerifBtn">Kirim ulang email verifikasi</button>
+                </div>
+            </div>
+
+            <!-- FORM REGISTER -->
+            <div id="registerForm" class="form-two">
+                <div class="field-two">
+                    <label>Nama Lengkap</label>
+                    <div class="input-icon-two">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                            <circle cx="12" cy="7" r="4" />
+                        </svg>
+                        <input type="text" id="regNama" placeholder="Nama lengkap Anda">
+                    </div>
+                </div>
+                <div class="field-two">
+                    <label>Email</label>
+                    <div class="input-icon-two">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                            <polyline points="22,6 12,13 2,6" />
+                        </svg>
+                        <input type="email" id="regEmail" placeholder="email@sekolah.com">
+                    </div>
+                </div>
+                <div class="field-two">
+                    <label>Password</label>
+                    <div class="input-icon-two">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                        </svg>
+                        <input type="password" id="regPassword" placeholder="Minimal 6 karakter">
+                    </div>
+                </div>
+                <div class="field-two">
+                    <label>Role</label>
+                    <div class="input-icon-two">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path
+                                d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                        </svg>
+                        <select id="regRole">
+                            <option value="guru">Guru</option>
+                            <option value="kepsek">Kepala Sekolah</option>
+                        </select>
+                    </div>
+                    <small class="hint-two">* Role Admin diatur oleh operator sistem</small>
+                </div>
+                <button class="btn-two" id="registerBtn">Daftar Akun</button>
+                <div class="msg-two" id="registerMsg"></div>
+            </div>
         </div>
 
-        <div class="card">
-            <div class="tabs">
-                <button class="tab active" data-tab="login">Masuk</button>
-                <button class="tab" data-tab="register">Daftar</button>
-            </div>
-
-            <div id="loginForm" class="form active">
-                <div class="field">
-                    <label>Email</label>
-                    <input type="email" id="loginEmail" placeholder="guru@sekolah.com" autocomplete="email">
+        <!-- SISI KANAN: ILUSTRASI / VEKTOR (KLIK UNTUK SWAP POSISI) -->
+        <div class="auth-illustration-side" id="illustrationSide"
+            style="background-image: url('https://cdna.artstation.com/p/assets/images/images/027/682/158/original/liz-gross-signup.gif?1592246526'); background-size: cover; background-position: center; position: relative; cursor: pointer;">
+            <div class="illustration-overlay"></div>
+            <div class="illustration-content">
+                <h2>Welcome!</h2>
+                <p>Sistem Absensi Digital berbasis lokasi dan foto selfie untuk memudahkan pencatatan kehadiran guru dan
+                    staf sekolah.</p>
+                <div class="feature-list">
+                    <div class="feature-item">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 16v-4M12 8h.01" />
+                        </svg>
+                        <span>Absensi real-time</span>
+                    </div>
+                    <div class="feature-item">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                            <circle cx="12" cy="12" r="3" />
+                        </svg>
+                        <span>Validasi lokasi GPS</span>
+                    </div>
+                    <div class="feature-item">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                            <rect x="2" y="2" width="20" height="20" rx="2.18" />
+                            <path d="M7 2v20M17 2v20M2 12h20M2 7h5M2 17h5M17 17h5M17 7h5" />
+                        </svg>
+                        <span>Foto selfie terintegrasi</span>
+                    </div>
                 </div>
-                <div class="field">
-                    <label>Password</label>
-                    <input type="password" id="loginPassword" placeholder="Kata sandi" autocomplete="current-password">
-                </div>
-                <div class="row">
-                    <label class="remember"><input type="checkbox" id="rememberMe"> Ingat saya</label>
-                    <button class="link" id="forgotBtn">Lupa password?</button>
-                </div>
-                <button class="btn" id="loginBtn">Masuk</button>
-                <div class="msg" id="loginMsg"></div>
-                <div class="resend-wrap" id="resendWrap">
-                    <button class="link" id="resendVerifBtn">Kirim ulang email verifikasi</button>
-                </div>
-            </div>
-
-            <div id="registerForm" class="form">
-                <div class="field">
-                    <label>Nama Lengkap</label>
-                    <input type="text" id="regNama" placeholder="Nama lengkap Anda">
-                </div>
-                <div class="field">
-                    <label>Email</label>
-                    <input type="email" id="regEmail" placeholder="email@sekolah.com">
-                </div>
-                <div class="field">
-                    <label>Password</label>
-                    <input type="password" id="regPassword" placeholder="Minimal 6 karakter">
-                </div>
-                <div class="field">
-                    <label>Role</label>
-                    <select id="regRole">
-                        <option value="guru">Guru</option>
-                        <option value="kepsek">Kepala Sekolah</option>
-                    </select>
-                    <small>* Role Admin diatur oleh operator sistem</small>
-                </div>
-                <button class="btn" id="registerBtn">Daftar Akun</button>
-                <div class="msg" id="registerMsg"></div>
             </div>
         </div>
     </div>
 
-    <!-- Modal Lupa Password -->
+    <!-- MODAL LUPA PASSWORD -->
     <div class="modal-overlay" id="forgotModal">
-        <div class="modal">
+        <div class="modal-box">
             <div class="modal-header">
                 <span class="modal-title">Reset Password</span>
-                <button class="close-btn" id="closeForgotBtn">&times;</button>
+                <button class="close-modal" id="closeForgotBtn">&times;</button>
             </div>
 
             <div id="step1" class="step active">
                 <p>Masukkan email terdaftar Anda untuk menerima kode OTP.</p>
-                <div class="field"><label>Email</label><input type="email" id="forgotEmail"
+                <div class="form-field"><label>Email</label><input type="email" id="forgotEmail"
                         placeholder="Email terdaftar"></div>
-                <button class="btn" id="sendOtpBtn">Kirim Kode OTP</button>
+                <button class="btn-primary full" id="sendOtpBtn">Kirim Kode OTP</button>
             </div>
 
             <div id="step2" class="step">
                 <p>Masukkan kode 6 digit yang dikirim ke email Anda.</p>
-                <div class="field"><label>Kode OTP</label><input type="text" id="otpInput" placeholder="6 digit kode"
-                        maxlength="6" style="letter-spacing:6px;font-size:22px;text-align:center"></div>
+                <div class="form-field"><label>Kode OTP</label><input type="text" id="otpInput"
+                        placeholder="6 digit kode" maxlength="6"
+                        style="letter-spacing:6px;font-size:22px;text-align:center"></div>
                 <div class="timer" id="otpTimer"></div>
                 <div class="otp-actions">
-                    <button class="btn-ghost" id="resendOtpBtn">Kirim ulang</button>
-                    <button class="btn" id="verifyOtpBtn" style="width:auto;flex:2">Verifikasi</button>
+                    <button class="btn-secondary" id="resendOtpBtn">Kirim ulang</button>
+                    <button class="btn-primary" id="verifyOtpBtn" style="flex:2">Verifikasi</button>
                 </div>
             </div>
 
             <div id="step3" class="step">
                 <p>Buat password baru untuk akun Anda.</p>
-                <div class="field"><label>Password Baru</label><input type="password" id="newPwd"
+                <div class="form-field"><label>Password Baru</label><input type="password" id="newPwd"
                         placeholder="Minimal 6 karakter"></div>
-                <div class="field"><label>Konfirmasi Password</label><input type="password" id="confirmPwd"
+                <div class="form-field"><label>Konfirmasi Password</label><input type="password" id="confirmPwd"
                         placeholder="Ulangi password baru"></div>
-                <button class="btn" id="resetPwdBtn">Simpan Password Baru</button>
+                <button class="btn-primary full" id="resetPwdBtn">Simpan Password Baru</button>
             </div>
 
             <div class="msg" id="forgotMsg"></div>
@@ -524,6 +200,11 @@
     </div>
 
     <script src="script.js"></script>
+    <script>
+        // ===== HALAMAN INDEX (LOGIN/REGISTER dengan TAB SWITCH) =====
+            loadSchoolName();
+            initSwapLayout();  // <-- Tambahkan baris ini
+    </script>
 </body>
 
 </html>
