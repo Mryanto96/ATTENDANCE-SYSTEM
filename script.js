@@ -5,7 +5,7 @@
 // Senin-Rabu Pulang: 12:00-12:15 WIT | Kamis-Jumat Pulang: 12:00 WIT
 // ============================================================
 
-const API_URL = "https://script.google.com/macros/s/AKfycbzTx9qlZiluxa-hjD8Gu_XgjWMcz5ldD9V72p8f5adl_2qYC8ag5iue_PeSb3TZ3wqABw/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwLNEUellGB3eiSCSdO5F64nN-sE7R3rgFe3K3AQnsKMCgrula4r_u0_Og8NwrVBJi11g/exec";
 
 let currentUser = null;
 let isSubmitting = false;
