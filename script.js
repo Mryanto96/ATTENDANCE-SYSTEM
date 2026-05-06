@@ -1,7 +1,8 @@
 // ============================================================
 // SISTEM ABSENSI DIGITAL - FRONTEND
-// Versi: 21.0 - TWO COLUMN AUTH WITH TAB SWITCH + DEFAULT ADMIN
-// KHUSUS PAPUA (WIT) - Jam Masuk: 07:00-08:30 WIT
+// Versi: 22.0 - KHUSUS PAPUA (WIT)
+// FIX: Format waktu dari backend (menghilangkan Sat D)
+// Jam Masuk: 07:00-08:30 WIT
 // Senin-Rabu Pulang: 12:00-12:15 WIT | Kamis-Jumat Pulang: 12:00 WIT
 // ============================================================
 
@@ -28,6 +29,47 @@ const DEFAULT_ADMIN = {
   status: 'Verified'
 };
 
+// ==================== FORMAT TIME HELPER (FIX Sat D) ====================
+function formatTimeFromBackend(value) {
+  if (!value) return null;
+
+  // Jika sudah dalam format HH:MM
+  if (typeof value === 'string' && /^\d{2}:\d{2}$/.test(value)) return value;
+
+  // Jika string dengan format H:MM (tanpa leading zero)
+  if (typeof value === 'string' && /^\d{1,2}:\d{2}$/.test(value)) {
+    var parts = value.split(':');
+    var hours = parseInt(parts[0]);
+    var minutes = parts[1];
+    return String(hours).padStart(2, '0') + ':' + minutes;
+  }
+
+  // Jika string dengan format HH:MM:SS
+  if (typeof value === 'string' && /^\d{2}:\d{2}:\d{2}$/.test(value)) {
+    return value.substring(0, 5);
+  }
+
+  // Jika dalam format ISO string "1899-12-30T06:00:00.000Z"
+  if (typeof value === 'string' && value.indexOf('T') !== -1) {
+    var match = value.match(/T(\d{2}):(\d{2}):/);
+    if (match) return match[1] + ':' + match[2];
+    match = value.match(/(\d{2}):(\d{2}):/);
+    if (match) return match[1] + ':' + match[2];
+  }
+
+  // Jika dalam bentuk number (desimal dari Sheets)
+  if (typeof value === 'number') {
+    var totalMinutes = Math.round(value * 24 * 60);
+    var hours = Math.floor(totalMinutes / 60);
+    var minutes = totalMinutes % 60;
+    return String(hours).padStart(2, '0') + ':' + String(minutes).padStart(2, '0');
+  }
+
+  // Fallback: ambil 5 karakter pertama
+  var str = value.toString();
+  return str.substring(0, 5);
+}
+
 // ==================== PAPUA TIME HELPER ====================
 function getPapuaTime() {
   // WIT = UTC+9
@@ -45,14 +87,10 @@ function formatPapuaTime(date, format) {
   const minutes = String(witDate.getMinutes()).padStart(2, '0');
   const seconds = String(witDate.getSeconds()).padStart(2, '0');
 
-  if (format === "yyyy-MM-dd") return `${year}-${month}-${day}`;
-  if (format === "HH:mm") return `${hours}:${minutes}`;
-  if (format === "HH:mm:ss") return `${hours}:${minutes}:${seconds}`;
-  return `${hours}:${minutes}`;
-}
-
-function isWithinTimeRange(currentMinutes, startMinutes, endMinutes) {
-  return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+  if (format === "yyyy-MM-dd") return year + '-' + month + '-' + day;
+  if (format === "HH:mm") return hours + ':' + minutes;
+  if (format === "HH:mm:ss") return hours + ':' + minutes + ':' + seconds;
+  return hours + ':' + minutes;
 }
 
 function timeToMinutes(timeStr) {
@@ -65,17 +103,15 @@ function timeToMinutes(timeStr) {
 
 // ==================== TAB SWITCH FUNCTION ====================
 function switchAuthTab(tabName) {
-  // Update tab buttons
   document.querySelectorAll('.tab-two').forEach(tab => {
     tab.classList.remove('active');
   });
   document.querySelector(`.tab-two[data-tab="${tabName}"]`).classList.add('active');
 
-  // Update forms
   document.querySelectorAll('.form-two').forEach(form => {
     form.classList.remove('active');
   });
-  document.getElementById(`${tabName}Form`).classList.add('active');
+  document.getElementById(tabName + 'Form').classList.add('active');
 }
 
 // ==================== JSONP API CALL ====================
@@ -174,18 +210,6 @@ function showMsg(id, type, text, isAuth = true) {
   }, 5000);
 }
 
-function hideMsg(id, isAuth = true) {
-  const el = document.getElementById(id);
-  if (el) {
-    if (isAuth) {
-      el.className = 'msg-two';
-    } else {
-      el.className = 'msg';
-    }
-    el.textContent = '';
-  }
-}
-
 function setBtn(id, loading, text) {
   const btn = document.getElementById(id);
   if (!btn) return;
@@ -251,7 +275,7 @@ function logout() {
   window.location.href = 'index.html';
 }
 
-// ==================== LOGIN (Dengan Default Admin) ====================
+// ==================== LOGIN ====================
 async function handleLogin(e) {
   if (e) e.preventDefault();
 
@@ -263,7 +287,6 @@ async function handleLogin(e) {
     return;
   }
 
-  // ========== CEK DEFAULT ADMIN ==========
   if (email === DEFAULT_ADMIN.email && password === DEFAULT_ADMIN.password) {
     saveAuth(DEFAULT_ADMIN);
     showMsg('loginMsg', 'success', 'Login sebagai Admin! Mengarahkan...', true);
@@ -272,7 +295,6 @@ async function handleLogin(e) {
     }, 800);
     return;
   }
-  // ======================================
 
   setBtn('loginBtn', true, 'Masuk');
   showMsg('loginMsg', 'loading', 'Memverifikasi akun...', true);
@@ -390,7 +412,7 @@ function startOtpCountdown() {
     if (!el) return;
     const m = Math.floor(secs / 60);
     const s = secs % 60;
-    el.textContent = `OTP berlaku: ${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    el.textContent = 'OTP berlaku: ' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
     if (secs <= 0) {
       clearInterval(otpTimer);
       el.textContent = 'OTP telah kadaluarsa';
@@ -587,7 +609,7 @@ async function getLocation() {
       (pos) => {
         currentLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy };
         if (info) {
-          info.textContent = `✅ Lokasi ditemukan (${currentLocation.lat.toFixed(5)}, ${currentLocation.lng.toFixed(5)}) ±${Math.round(currentLocation.accuracy)}m`;
+          info.textContent = '✅ Lokasi ditemukan (' + currentLocation.lat.toFixed(5) + ', ' + currentLocation.lng.toFixed(5) + ') ±' + Math.round(currentLocation.accuracy) + 'm';
           info.className = 'location-info found';
         }
         if (btn) { btn.disabled = false; btn.textContent = '✅ Lokasi Didapat'; }
@@ -625,16 +647,16 @@ async function loadTodayStatus() {
   if (box) {
     let html = '';
     if (d.hasCheckedIn) {
-      html += `<div class="info-box success">✅ Absen masuk: <strong>${d.checkInTime}</strong> di ${d.lokasi || '-'}</div>`;
+      html += '<div class="info-box success">✅ Absen masuk: <strong>' + d.checkInTime + '</strong> di ' + (d.lokasi || '-') + '</div>';
       if (ci) { ci.disabled = true; ci.dataset.done = '1'; }
     } else {
-      html += `<div class="info-box info">📝 Belum absen masuk hari ini</div>`;
+      html += '<div class="info-box info">📝 Belum absen masuk hari ini</div>';
     }
     if (d.hasCheckedOut) {
-      html += `<div class="info-box success">✅ Absen pulang: <strong>${d.checkOutTime}</strong></div>`;
+      html += '<div class="info-box success">✅ Absen pulang: <strong>' + d.checkOutTime + '</strong></div>';
       if (co) { co.disabled = true; co.dataset.done = '1'; }
     } else if (d.hasCheckedIn) {
-      html += `<div class="info-box warning">⏰ Belum absen pulang</div>`;
+      html += '<div class="info-box warning">⏰ Belum absen pulang</div>';
     }
     box.innerHTML = html;
   }
@@ -668,26 +690,25 @@ async function loadScheduleInfo() {
   if (day >= 1 && day <= 3) {
     label = 'Senin – Rabu';
     jadwal = {
-      masukMulai: s.senin_rabu_masuk_mulai?.value || '07:00',
-      masukSelesai: s.senin_rabu_masuk_selesai?.value || '08:30',
-      pulangMulai: s.senin_rabu_pulang_mulai?.value || '12:00',
-      pulangSelesai: s.senin_rabu_pulang_selesai?.value || '12:15'
+      masukMulai: formatTimeFromBackend(s.senin_rabu_masuk_mulai?.value) || '07:00',
+      masukSelesai: formatTimeFromBackend(s.senin_rabu_masuk_selesai?.value) || '08:30',
+      pulangMulai: formatTimeFromBackend(s.senin_rabu_pulang_mulai?.value) || '12:00',
+      pulangSelesai: formatTimeFromBackend(s.senin_rabu_pulang_selesai?.value) || '12:15'
     };
   } else {
     label = 'Kamis – Jumat';
     jadwal = {
-      masukMulai: s.kamis_jumat_masuk_mulai?.value || '07:00',
-      masukSelesai: s.kamis_jumat_masuk_selesai?.value || '08:30',
-      pulangMulai: s.kamis_jumat_pulang_mulai?.value || '12:00',
-      pulangSelesai: s.kamis_jumat_pulang_selesai?.value || '12:00'
+      masukMulai: formatTimeFromBackend(s.kamis_jumat_masuk_mulai?.value) || '07:00',
+      masukSelesai: formatTimeFromBackend(s.kamis_jumat_masuk_selesai?.value) || '08:30',
+      pulangMulai: formatTimeFromBackend(s.kamis_jumat_pulang_mulai?.value) || '12:00',
+      pulangSelesai: formatTimeFromBackend(s.kamis_jumat_pulang_selesai?.value) || '12:00'
     };
   }
-  el.innerHTML = `
-        <div class="info-box info">
-            <strong>📅 ${label}</strong><br>
-            🟢 Masuk: ${jadwal.masukMulai} – ${jadwal.masukSelesai} WIT<br>
-            🔴 Pulang: ${jadwal.pulangMulai} – ${jadwal.pulangSelesai} WIT
-        </div>`;
+  el.innerHTML = '<div class="info-box info">' +
+    '<strong>📅 ' + label + '</strong><br>' +
+    '🟢 Masuk: ' + jadwal.masukMulai + ' – ' + jadwal.masukSelesai + ' WIT<br>' +
+    '🔴 Pulang: ' + jadwal.pulangMulai + ' – ' + jadwal.pulangSelesai + ' WIT' +
+    '</div>';
 }
 
 // ==================== CHECK IN ====================
@@ -783,15 +804,15 @@ async function loadHistory() {
   if (!tbody) return;
 
   if (r.status === 'success' && r.data && r.data.length > 0) {
-    tbody.innerHTML = r.data.map(row => `
-            <tr>
-                <td>${formatDate(row.tanggal)}</td>
-                <td>${row.checkIn || '-'}</td>
-                <td>${row.checkOut || '-'}</td>
-                <td>${row.lokasi || '-'}</td>
-                <td><span class="badge badge-success">${row.status || 'Hadir'}</span></td>
-            </tr>
-        `).join('');
+    tbody.innerHTML = r.data.map(row =>
+      '<tr>' +
+      '<td>' + formatDate(row.tanggal) + '</td>' +
+      '<td>' + (row.checkIn || '-') + '</td>' +
+      '<td>' + (row.checkOut || '-') + '</td>' +
+      '<td>' + (row.lokasi || '-') + '</td>' +
+      '<td><span class="badge badge-success">' + (row.status || 'Hadir') + '</span></td>' +
+      '</tr>'
+    ).join('');
   } else {
     tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Tidak ada data untuk periode ini</td></tr>';
   }
@@ -838,7 +859,7 @@ async function loadDashboardStats() {
 // ==================== TEACHERS (KEPSEK & ADMIN) ====================
 async function loadAllTeachers() {
   const tbody = document.getElementById('teachersBody');
-  if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Memuat data...</tr></tr>';
+  if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Memuat data...</td></tr>';
 
   const searchVal = document.getElementById('searchTeacher')?.value?.toLowerCase() || '';
   const roleFilter = document.getElementById('filterRole')?.value || 'all';
@@ -846,7 +867,7 @@ async function loadAllTeachers() {
 
   if (!tbody) return;
   if (r.status !== 'success' || !r.data || !r.data.length) {
-    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Belum ada data pengguna</tbody>';
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Belum ada data pengguna</td></tr>';
     return;
   }
 
@@ -855,22 +876,20 @@ async function loadAllTeachers() {
   if (roleFilter !== 'all') data = data.filter(u => u.role === roleFilter);
 
   const isAdmin = currentUser?.role === 'admin';
-  tbody.innerHTML = data.map((u, i) => `
-        <tr>
-            <td>${i + 1}</td>
-            <td><strong>${u.nama || '-'}</strong></td>
-            <td style="color:var(--text2)">${u.email || '-'}</td>
-            <td><span class="badge badge-info">${u.role === 'guru' ? 'Guru' : u.role === 'kepsek' ? 'Kepsek' : 'Admin'}</span></td>
-            <td>${u.status === 'Verified' ? '<span class="badge badge-success">Aktif</span>' : u.status === 'Pending' ? '<span class="badge badge-warning">Pending</span>' : '<span class="badge badge-error">Diblokir</span>'}</td>
-            <td>
-                <div class="td-actions">
-                    <button class="btn-secondary btn-sm" onclick="viewTeacherAttendance('${u.email}')">📋 Absensi</button>
-                    ${isAdmin ? `<button class="btn-secondary btn-sm" onclick="editTeacher('${u.email}')">✏️ Edit</button>` : ''}
-                    ${isAdmin ? `<button class="${u.status === 'Blocked' ? 'btn-success' : 'btn-danger'} btn-sm" onclick="toggleBlock('${u.email}','${u.status}')">${u.status === 'Blocked' ? '🔓 Aktifkan' : '🔒 Blokir'}</button>` : ''}
-                </div>
-            </td>
-        </tr>
-    `).join('');
+  tbody.innerHTML = data.map((u, i) =>
+    '<tr>' +
+    '<td>' + (i + 1) + '</td>' +
+    '<td><strong>' + (u.nama || '-') + '</strong></td>' +
+    '<td style="color:var(--text2)">' + (u.email || '-') + '</td>' +
+    '<td><span class="badge badge-info">' + (u.role === 'guru' ? 'Guru' : u.role === 'kepsek' ? 'Kepsek' : 'Admin') + '</span></td>' +
+    '<td>' + (u.status === 'Verified' ? '<span class="badge badge-success">Aktif</span>' : u.status === 'Pending' ? '<span class="badge badge-warning">Pending</span>' : '<span class="badge badge-error">Diblokir</span>') + '</td>' +
+    '<td><div class="td-actions">' +
+    '<button class="btn-secondary btn-sm" onclick="viewTeacherAttendance(\'' + u.email + '\')">📋 Absensi</button>' +
+    (isAdmin ? '<button class="btn-secondary btn-sm" onclick="editTeacher(\'' + u.email + '\')">✏️ Edit</button>' : '') +
+    (isAdmin ? '<button class="' + (u.status === 'Blocked' ? 'btn-success' : 'btn-danger') + ' btn-sm" onclick="toggleBlock(\'' + u.email + '\',\'' + u.status + '\')">' + (u.status === 'Blocked' ? '🔓 Aktifkan' : '🔒 Blokir') + '</button>' : '') +
+    '</div></td>' +
+    '</tr>'
+  ).join('');
 }
 
 window.viewTeacherAttendance = async function (email) {
@@ -884,7 +903,9 @@ window.viewTeacherAttendance = async function (email) {
   document.getElementById('teacherDetailEmail').textContent = email;
 
   if (r.status === 'success' && r.data && r.data.length > 0) {
-    detContent.innerHTML = '<div class="table-wrap"><table class="data-table"><thead><tr><th>Tanggal</th><th>Check In</th><th>Check Out</th><th>Lokasi</th></tr></thead><tbody>' + r.data.map(d => '<tr><td>' + formatDate(d.tanggal) + '</td><td>' + (d.checkIn || '-') + '</td><td>' + (d.checkOut || '-') + '</td><td>' + (d.lokasi || '-') + '</td></tr>').join('') + '</tbody></table></div>';
+    detContent.innerHTML = '<div class="table-wrap"><table class="data-table"><thead><tr><th>Tanggal</th><th>Check In</th><th>Check Out</th><th>Lokasi</th></tr></thead><tbody>' +
+      r.data.map(d => '<tr><td>' + formatDate(d.tanggal) + '</td><td>' + (d.checkIn || '-') + '</td><td>' + (d.checkOut || '-') + '</td><td>' + (d.lokasi || '-') + '</td></tr>').join('') +
+      '</tbody></table></div>';
   } else {
     detContent.innerHTML = '<div class="empty-state"><span class="icon">📭</span>Belum ada data absensi bulan ini</div>';
   }
@@ -999,7 +1020,15 @@ async function loadLocations() {
   const r = await apiCall({ action: 'getLocations' });
   if (!tbody) return;
   if (r.status === 'success' && r.data && r.data.length > 0) {
-    tbody.innerHTML = r.data.map(loc => '<tr><td><strong>' + loc.nama_kelas + '</strong></td><td>' + loc.lat + '</td><td>' + loc.lng + '</td><td><span class="badge badge-info">' + loc.radius_meter + ' m</span></td><td><button class="btn-danger btn-sm" onclick="alert(\'Hapus lokasi: ' + loc.nama_kelas + ' (implementasi nanti)\')">🗑️ Hapus</button></td></tr>').join('');
+    tbody.innerHTML = r.data.map(loc =>
+      '<tr>' +
+      '<td><strong>' + loc.nama_kelas + '</strong></td>' +
+      '<td>' + loc.lat + '</td>' +
+      '<td>' + loc.lng + '</td>' +
+      '<td><span class="badge badge-info">' + loc.radius_meter + ' m</span></td>' +
+      '<td><button class="btn-danger btn-sm" onclick="alert(\'Hapus lokasi: ' + loc.nama_kelas + ' (implementasi nanti)\')">🗑️ Hapus</button></td>' +
+      '</tr>'
+    ).join('');
   } else {
     tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Belum ada lokasi terdaftar</td></tr>';
   }
@@ -1043,23 +1072,51 @@ async function loadSettings() {
   const r = await apiCall({ action: 'getSettings' });
   if (r.status !== 'success') return;
   const s = r.data;
-  const keys = ['senin_rabu_masuk_mulai', 'senin_rabu_masuk_selesai', 'senin_rabu_pulang_mulai', 'senin_rabu_pulang_selesai',
-    'kamis_jumat_masuk_mulai', 'kamis_jumat_masuk_selesai', 'kamis_jumat_pulang_mulai', 'kamis_jumat_pulang_selesai', 'school_name'];
-  keys.forEach(k => {
-    const el = document.getElementById('set_' + k);
-    if (el && s[k]) el.value = s[k].value;
-  });
+
+  // Gunakan formatTimeFromBackend untuk memastikan format waktu yang benar
+  const setVal = function (key, defaultValue) {
+    return formatTimeFromBackend(s[key]?.value) || defaultValue;
+  };
+
+  const setSeninRabuMasukMulai = document.getElementById('set_senin_rabu_masuk_mulai');
+  const setSeninRabuMasukSelesai = document.getElementById('set_senin_rabu_masuk_selesai');
+  const setSeninRabuPulangMulai = document.getElementById('set_senin_rabu_pulang_mulai');
+  const setSeninRabuPulangSelesai = document.getElementById('set_senin_rabu_pulang_selesai');
+  const setKamisJumatMasukMulai = document.getElementById('set_kamis_jumat_masuk_mulai');
+  const setKamisJumatMasukSelesai = document.getElementById('set_kamis_jumat_masuk_selesai');
+  const setKamisJumatPulangMulai = document.getElementById('set_kamis_jumat_pulang_mulai');
+  const setKamisJumatPulangSelesai = document.getElementById('set_kamis_jumat_pulang_selesai');
+  const setSchoolName = document.getElementById('set_school_name');
+
+  if (setSeninRabuMasukMulai) setSeninRabuMasukMulai.value = setVal('senin_rabu_masuk_mulai', '07:00');
+  if (setSeninRabuMasukSelesai) setSeninRabuMasukSelesai.value = setVal('senin_rabu_masuk_selesai', '08:30');
+  if (setSeninRabuPulangMulai) setSeninRabuPulangMulai.value = setVal('senin_rabu_pulang_mulai', '12:00');
+  if (setSeninRabuPulangSelesai) setSeninRabuPulangSelesai.value = setVal('senin_rabu_pulang_selesai', '12:15');
+  if (setKamisJumatMasukMulai) setKamisJumatMasukMulai.value = setVal('kamis_jumat_masuk_mulai', '07:00');
+  if (setKamisJumatMasukSelesai) setKamisJumatMasukSelesai.value = setVal('kamis_jumat_masuk_selesai', '08:30');
+  if (setKamisJumatPulangMulai) setKamisJumatPulangMulai.value = setVal('kamis_jumat_pulang_mulai', '12:00');
+  if (setKamisJumatPulangSelesai) setKamisJumatPulangSelesai.value = setVal('kamis_jumat_pulang_selesai', '12:00');
+  if (setSchoolName) setSchoolName.value = s.school_name?.value || '';
 }
 
 async function saveSettings() {
   if (isSubmitting) return;
-  const keys = ['senin_rabu_masuk_mulai', 'senin_rabu_masuk_selesai', 'senin_rabu_pulang_mulai', 'senin_rabu_pulang_selesai',
-    'kamis_jumat_masuk_mulai', 'kamis_jumat_masuk_selesai', 'kamis_jumat_pulang_mulai', 'kamis_jumat_pulang_selesai', 'school_name'];
   const settings = {};
-  keys.forEach(k => {
-    const el = document.getElementById('set_' + k);
-    if (el) settings[k] = el.value;
-  });
+
+  const getVal = function (id) {
+    const el = document.getElementById(id);
+    return el ? el.value : '';
+  };
+
+  settings.senin_rabu_masuk_mulai = getVal('set_senin_rabu_masuk_mulai');
+  settings.senin_rabu_masuk_selesai = getVal('set_senin_rabu_masuk_selesai');
+  settings.senin_rabu_pulang_mulai = getVal('set_senin_rabu_pulang_mulai');
+  settings.senin_rabu_pulang_selesai = getVal('set_senin_rabu_pulang_selesai');
+  settings.kamis_jumat_masuk_mulai = getVal('set_kamis_jumat_masuk_mulai');
+  settings.kamis_jumat_masuk_selesai = getVal('set_kamis_jumat_masuk_selesai');
+  settings.kamis_jumat_pulang_mulai = getVal('set_kamis_jumat_pulang_mulai');
+  settings.kamis_jumat_pulang_selesai = getVal('set_kamis_jumat_pulang_selesai');
+  settings.school_name = getVal('set_school_name');
 
   isSubmitting = true;
   setBtn('saveSetBtn', true, 'Simpan Pengaturan');
@@ -1214,7 +1271,7 @@ function initMobileMenu() {
   }
 }
 
-// ==================== SWAP LAYOUT FUNCTION - SMOOTH ====================
+// ==================== SWAP LAYOUT FUNCTION ====================
 let isSwapping = false;
 let swapTimeout = null;
 
@@ -1334,7 +1391,7 @@ function populateYears() {
 
 // ==================== INITIALIZATION ====================
 document.addEventListener('DOMContentLoaded', function () {
-  console.log('🚀 Aplikasi dimulai v21.0 - KHUSUS PAPUA (WIT)');
+  console.log('🚀 Aplikasi dimulai v22.0 - KHUSUS PAPUA (WIT) - FIX Sat D');
   console.log('📅 Jam Masuk: 07:00-08:30 WIT');
   console.log('📅 Senin-Rabu Pulang: 12:00-12:15 WIT');
   console.log('📅 Kamis-Jumat Pulang: 12:00 WIT');
@@ -1434,11 +1491,10 @@ document.addEventListener('DOMContentLoaded', function () {
     return;
   }
 
-  // ===== HALAMAN INDEX (LOGIN/REGISTER dengan TAB SWITCH) =====
+  // ===== HALAMAN INDEX (LOGIN/REGISTER) =====
   loadSchoolName();
   initSwapLayout();
 
-  // Tab switch buttons
   document.querySelectorAll('.tab-two').forEach(tab => {
     tab.addEventListener('click', function () {
       const targetTab = this.getAttribute('data-tab');
@@ -1446,7 +1502,6 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 
-  // Login and Register buttons
   var loginBtn = document.getElementById('loginBtn');
   if (loginBtn) loginBtn.addEventListener('click', handleLogin);
 
@@ -1488,5 +1543,5 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  console.log('✅ Aplikasi siap digunakan v21.0 - Khusus Papua (WIT)');
+  console.log('✅ Aplikasi siap digunakan v22.0 - Khusus Papua (WIT) - FIX Sat D');
 });
