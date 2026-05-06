@@ -1,17 +1,18 @@
 // ============================================================
 // SISTEM ABSENSI DIGITAL - FRONTEND
-// Versi: 23.0 - KHUSUS PAPUA (WIT)
-// FIX: Modal konfirmasi untuk blokir/aktifkan
-// FIX: Dashboard admin menampilkan jadwal absensi
+// Versi: 24.0 - KHUSUS PAPUA (WIT)
+// FIX: Dark Mode berfungsi di DOMContentLoaded
+// FIX: Tanggal dan jam sesuai WIT
+// FIX: Jadwal Kepsek menampilkan semua hari
 // ============================================================
 
-const API_URL = "https://script.google.com/macros/s/AKfycbz4j_j9hQa4doewtzRSs8t2YH7Ez9nV67FaKkLgMC63iB96fhlIkv4XW1oE1j2RUwHl/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbyx5A3o5GzcMD7kWrHnRhrmWvJjEHVHFbTBPMYPGwD5Fs-4bxy8Ejblqyemb4bxUPar/exec";
 
 let currentUser = null;
 let isSubmitting = false;
 let otpTimer = null;
 let forgotEmailGlobal = '';
-let pendingBlockAction = null; // Untuk menyimpan aksi blokir yang pending
+let pendingBlockAction = null;
 
 // Camera & Location variables
 let mediaStream = null;
@@ -19,7 +20,7 @@ let capturedPhoto = null;
 let currentLocation = null;
 
 // ============================================================
-// DEFAULT ADMIN ACCOUNT (UNTUK LOGIN PERTAMA KALI)
+// DEFAULT ADMIN ACCOUNT
 // ============================================================
 const DEFAULT_ADMIN = {
   email: 'admin@sekolah.com',
@@ -29,7 +30,54 @@ const DEFAULT_ADMIN = {
   status: 'Verified'
 };
 
-// ==================== FORMAT TIME HELPER (FIX Sat D) ====================
+// ==================== PAPUA TIME HELPER (WIT) ====================
+function getPapuaTime() {
+  // WIT = UTC+9
+  const now = new Date();
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  return new Date(utc + (3600000 * 9));
+}
+
+function formatPapuaTime(date, format) {
+  const witDate = getPapuaTime();
+  const year = witDate.getFullYear();
+  const month = String(witDate.getMonth() + 1).padStart(2, '0');
+  const day = String(witDate.getDate()).padStart(2, '0');
+  const hours = String(witDate.getHours()).padStart(2, '0');
+  const minutes = String(witDate.getMinutes()).padStart(2, '0');
+  const seconds = String(witDate.getSeconds()).padStart(2, '0');
+
+  if (format === "yyyy-MM-dd") return year + '-' + month + '-' + day;
+  if (format === "HH:mm") return hours + ':' + minutes;
+  if (format === "HH:mm:ss") return hours + ':' + minutes + ':' + seconds;
+  return hours + ':' + minutes;
+}
+
+function updateClock() {
+  const now = getPapuaTime();
+  const dateEl = document.getElementById('dateStr');
+  const timeEl = document.getElementById('timeStr');
+
+  if (dateEl) {
+    dateEl.textContent = now.toLocaleDateString('id-ID', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'Asia/Jayapura'
+    });
+  }
+  if (timeEl) {
+    timeEl.textContent = now.toLocaleTimeString('id-ID', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      timeZone: 'Asia/Jayapura'
+    });
+  }
+}
+
+// ==================== FORMAT TIME HELPER ====================
 function formatTimeFromBackend(value) {
   if (!value) return null;
 
@@ -59,28 +107,6 @@ function formatTimeFromBackend(value) {
   return str.substring(0, 5);
 }
 
-// ==================== PAPUA TIME HELPER ====================
-function getPapuaTime() {
-  const now = new Date();
-  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-  return new Date(utc + (3600000 * 9));
-}
-
-function formatPapuaTime(date, format) {
-  const witDate = getPapuaTime();
-  const year = witDate.getFullYear();
-  const month = String(witDate.getMonth() + 1).padStart(2, '0');
-  const day = String(witDate.getDate()).padStart(2, '0');
-  const hours = String(witDate.getHours()).padStart(2, '0');
-  const minutes = String(witDate.getMinutes()).padStart(2, '0');
-  const seconds = String(witDate.getSeconds()).padStart(2, '0');
-
-  if (format === "yyyy-MM-dd") return year + '-' + month + '-' + day;
-  if (format === "HH:mm") return hours + ':' + minutes;
-  if (format === "HH:mm:ss") return hours + ':' + minutes + ':' + seconds;
-  return hours + ':' + minutes;
-}
-
 function timeToMinutes(timeStr) {
   if (!timeStr) return 0;
   const parts = timeStr.toString().split(':');
@@ -89,9 +115,52 @@ function timeToMinutes(timeStr) {
   return hours * 60 + minutes;
 }
 
+// ==================== DARK MODE ====================
+function initDarkMode() {
+  const darkModeBtn = document.getElementById('darkModeBtn');
+  if (!darkModeBtn) return;
+
+  const sunIcon = darkModeBtn.querySelector('.sun-icon');
+  const moonIcon = darkModeBtn.querySelector('.moon-icon');
+  const toggleText = darkModeBtn.querySelector('.toggle-text');
+
+  // Cek preferensi yang tersimpan
+  const savedMode = localStorage.getItem('darkMode');
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+  // Set mode awal
+  if (savedMode === 'enabled' || (!savedMode && prefersDark)) {
+    document.body.classList.add('dark-mode');
+    if (sunIcon) sunIcon.style.display = 'none';
+    if (moonIcon) moonIcon.style.display = 'block';
+    if (toggleText) toggleText.textContent = 'Light';
+  } else {
+    document.body.classList.remove('dark-mode');
+    if (sunIcon) sunIcon.style.display = 'block';
+    if (moonIcon) moonIcon.style.display = 'none';
+    if (toggleText) toggleText.textContent = 'Dark';
+  }
+
+  // Event listener untuk toggle
+  darkModeBtn.addEventListener('click', function () {
+    const isDark = document.body.classList.toggle('dark-mode');
+
+    if (isDark) {
+      localStorage.setItem('darkMode', 'enabled');
+      if (sunIcon) sunIcon.style.display = 'none';
+      if (moonIcon) moonIcon.style.display = 'block';
+      if (toggleText) toggleText.textContent = 'Light';
+    } else {
+      localStorage.setItem('darkMode', 'disabled');
+      if (sunIcon) sunIcon.style.display = 'block';
+      if (moonIcon) moonIcon.style.display = 'none';
+      if (toggleText) toggleText.textContent = 'Dark';
+    }
+  });
+}
+
 // ==================== MODAL KONFIRMASI ====================
 function showConfirmModal(title, message, onConfirm, onCancel) {
-  // Cek apakah modal sudah ada, jika belum buat
   let modal = document.getElementById('confirmModal');
   if (!modal) {
     modal = document.createElement('div');
@@ -115,11 +184,9 @@ function showConfirmModal(title, message, onConfirm, onCancel) {
     document.body.appendChild(modal);
   }
 
-  // Set konten
   document.getElementById('confirmTitle').textContent = title;
   document.getElementById('confirmMessage').textContent = message;
 
-  // Setup event listeners (hapus yang lama agar tidak double)
   const closeBtn = modal.querySelector('.close-modal');
   const cancelBtn = document.getElementById('confirmCancelBtn');
   const okBtn = document.getElementById('confirmOkBtn');
@@ -134,7 +201,6 @@ function showConfirmModal(title, message, onConfirm, onCancel) {
     if (onConfirm) onConfirm();
   };
 
-  // Hapus event listener lama dengan clone + replace
   const newCloseBtn = closeBtn.cloneNode(true);
   closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
 
@@ -148,25 +214,11 @@ function showConfirmModal(title, message, onConfirm, onCancel) {
   newCancelBtn.addEventListener('click', closeModal);
   newOkBtn.addEventListener('click', confirmAction);
 
-  // Tutup jika klik di luar modal
   modal.addEventListener('click', function (e) {
     if (e.target === modal) closeModal();
   });
 
   modal.classList.add('open');
-}
-
-// ==================== TAB SWITCH FUNCTION ====================
-function switchAuthTab(tabName) {
-  document.querySelectorAll('.tab-two').forEach(tab => {
-    tab.classList.remove('active');
-  });
-  document.querySelector(`.tab-two[data-tab="${tabName}"]`).classList.add('active');
-
-  document.querySelectorAll('.form-two').forEach(form => {
-    form.classList.remove('active');
-  });
-  document.getElementById(tabName + 'Form').classList.add('active');
 }
 
 // ==================== JSONP API CALL ====================
@@ -284,29 +336,6 @@ function formatDate(str) {
     return str;
   }
   return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
-}
-
-function updateClock() {
-  const now = getPapuaTime();
-  const dateEl = document.getElementById('dateStr');
-  const timeEl = document.getElementById('timeStr');
-  if (dateEl) {
-    dateEl.textContent = now.toLocaleDateString('id-ID', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-      timeZone: 'Asia/Jayapura'
-    });
-  }
-  if (timeEl) {
-    timeEl.textContent = now.toLocaleTimeString('id-ID', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      timeZone: 'Asia/Jayapura'
-    });
-  }
 }
 
 // ==================== AUTH ====================
@@ -727,12 +756,47 @@ async function loadTodayStatus() {
   }
 }
 
-// ==================== LOAD SCHEDULE INFO (KHUSUS ADMIN) ====================
+// ==================== LOAD SCHEDULE INFO ====================
 async function loadAdminScheduleInfo() {
   const r = await apiCall({ action: 'getSettings' });
   if (r.status !== 'success') return;
   const s = r.data;
   const el = document.getElementById('adminScheduleInfo');
+  if (!el) return;
+
+  const jadwalSeninRabu = {
+    masukMulai: formatTimeFromBackend(s.senin_rabu_masuk_mulai?.value) || '07:00',
+    masukSelesai: formatTimeFromBackend(s.senin_rabu_masuk_selesai?.value) || '08:30',
+    pulangMulai: formatTimeFromBackend(s.senin_rabu_pulang_mulai?.value) || '12:00',
+    pulangSelesai: formatTimeFromBackend(s.senin_rabu_pulang_selesai?.value) || '12:15'
+  };
+
+  const jadwalKamisJumat = {
+    masukMulai: formatTimeFromBackend(s.kamis_jumat_masuk_mulai?.value) || '07:00',
+    masukSelesai: formatTimeFromBackend(s.kamis_jumat_masuk_selesai?.value) || '08:30',
+    pulangMulai: formatTimeFromBackend(s.kamis_jumat_pulang_mulai?.value) || '12:00',
+    pulangSelesai: formatTimeFromBackend(s.kamis_jumat_pulang_selesai?.value) || '12:00'
+  };
+
+  el.innerHTML = `
+    <div class="info-box info">
+      <strong>📅 Senin – Rabu</strong><br>
+      🟢 Masuk: ${jadwalSeninRabu.masukMulai} – ${jadwalSeninRabu.masukSelesai} WIT<br>
+      🔴 Pulang: ${jadwalSeninRabu.pulangMulai} – ${jadwalSeninRabu.pulangSelesai} WIT
+    </div>
+    <div class="info-box info" style="margin-top: 10px;">
+      <strong>📅 Kamis – Jumat</strong><br>
+      🟢 Masuk: ${jadwalKamisJumat.masukMulai} – ${jadwalKamisJumat.masukSelesai} WIT<br>
+      🔴 Pulang: ${jadwalKamisJumat.pulangMulai} – ${jadwalKamisJumat.pulangSelesai} WIT
+    </div>
+  `;
+}
+
+async function loadKepsekScheduleInfo() {
+  const r = await apiCall({ action: 'getSettings' });
+  if (r.status !== 'success') return;
+  const s = r.data;
+  const el = document.getElementById('kepsekScheduleInfo');
   if (!el) return;
 
   const jadwalSeninRabu = {
@@ -889,7 +953,7 @@ async function loadHistory() {
   if (!month || !year || !currentUser) return;
 
   const tbody = document.getElementById('histBody');
-  if (tbody) tbody.innerHTML = '</tr><td colspan="5" class="empty-state">Memuat...</tr>';
+  if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Memuat...</td></tr>';
 
   const r = await apiCall({ action: 'getAttendanceHistory', email: currentUser.email, month, year });
   if (!tbody) return;
@@ -905,7 +969,7 @@ async function loadHistory() {
       '</tr>'
     ).join('');
   } else {
-    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Tidak ada data untuk periode ini</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Tidak ada data untuk periode ini</td>';
   }
 
   if (r.status === 'success' && r.data) {
@@ -947,10 +1011,10 @@ async function loadDashboardStats() {
   }
 }
 
-// ==================== TEACHERS (KEPSEK & ADMIN) ====================
+// ==================== TEACHERS ====================
 async function loadAllTeachers() {
   const tbody = document.getElementById('teachersBody');
-  if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Memuat data...</td></tr>';
+  if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Memuat data...<tr>';
 
   const searchVal = document.getElementById('searchTeacher')?.value?.toLowerCase() || '';
   const roleFilter = document.getElementById('filterRole')?.value || 'all';
@@ -958,7 +1022,7 @@ async function loadAllTeachers() {
 
   if (!tbody) return;
   if (r.status !== 'success' || !r.data || !r.data.length) {
-    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Belum ada data pengguna</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Belum ada data pengguna</td>';
     return;
   }
 
@@ -983,7 +1047,7 @@ async function loadAllTeachers() {
   ).join('');
 }
 
-// ==================== CONFIRM TOGGLE BLOCK (DENGAN MODAL) ====================
+// ==================== CONFIRM TOGGLE BLOCK ====================
 window.confirmToggleBlock = function (email, currentStatus) {
   const isBlocked = currentStatus === 'Blocked';
   const actionText = isBlocked ? 'mengaktifkan' : 'memblokir';
@@ -991,7 +1055,6 @@ window.confirmToggleBlock = function (email, currentStatus) {
   const message = `Apakah Anda yakin ingin ${actionText} user dengan email: ${email}?`;
 
   showConfirmModal(title, message, async function () {
-    // OnConfirm - lakukan aksi blokir/aktifkan
     const blocked = !isBlocked;
     const r = await apiCall({ action: 'blockUser', email, blocked: blocked ? 'true' : 'false' });
     if (r.status === 'success') {
@@ -1023,20 +1086,6 @@ window.confirmToggleBlock = function (email, currentStatus) {
       }
     }
   });
-};
-
-window.toggleBlock = async function (email, currentStatus) {
-  // Fungsi ini dipertahankan untuk kompatibilitas, tapi lebih baik pakai confirmToggleBlock
-  const blocked = currentStatus !== 'Blocked';
-  const r = await apiCall({ action: 'blockUser', email, blocked: blocked ? 'true' : 'false' });
-  if (r.status === 'success') {
-    const msgEl = document.getElementById('setMsg');
-    if (msgEl) { msgEl.className = 'msg success show'; msgEl.textContent = r.message; setTimeout(() => { if (msgEl.classList.contains('show')) { msgEl.classList.remove('show'); msgEl.className = 'msg'; msgEl.textContent = ''; } }, 5000); }
-    loadAllTeachers();
-  } else {
-    const msgEl = document.getElementById('setMsg');
-    if (msgEl) { msgEl.className = 'msg error show'; msgEl.textContent = r.message; setTimeout(() => { if (msgEl.classList.contains('show')) { msgEl.classList.remove('show'); msgEl.className = 'msg'; msgEl.textContent = ''; } }, 5000); }
-  }
 };
 
 window.viewTeacherAttendance = async function (email) {
@@ -1146,10 +1195,10 @@ async function saveAddTeacher() {
   }
 }
 
-// ==================== LOCATIONS (ADMIN) ====================
+// ==================== LOCATIONS ====================
 async function loadLocations() {
   const tbody = document.getElementById('locationsBody');
-  if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Memuat...</td></tr>';
+  if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Memuat...</td>';
 
   const r = await apiCall({ action: 'getLocations' });
   if (!tbody) return;
@@ -1164,7 +1213,7 @@ async function loadLocations() {
       '</tr>'
     ).join('');
   } else {
-    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Belum ada lokasi terdaftar</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Belum ada lokasi terdaftar</td>';
   }
 }
 
@@ -1201,7 +1250,7 @@ async function addLocation() {
   }
 }
 
-// ==================== SETTINGS (ADMIN) ====================
+// ==================== SETTINGS ====================
 async function loadSettings() {
   const r = await apiCall({ action: 'getSettings' });
   if (r.status !== 'success') return;
@@ -1262,6 +1311,7 @@ async function saveSettings() {
   if (r.status === 'success') {
     if (msgEl) { msgEl.className = 'msg success show'; msgEl.textContent = 'Pengaturan berhasil disimpan'; setTimeout(() => { if (msgEl.classList.contains('show')) { msgEl.classList.remove('show'); msgEl.className = 'msg'; msgEl.textContent = ''; } }, 5000); }
     loadAdminScheduleInfo();
+    loadKepsekScheduleInfo();
     loadScheduleInfo();
   } else {
     if (msgEl) { msgEl.className = 'msg error show'; msgEl.textContent = r.message || 'Gagal menyimpan'; setTimeout(() => { if (msgEl.classList.contains('show')) { msgEl.classList.remove('show'); msgEl.className = 'msg'; msgEl.textContent = ''; } }, 5000); }
@@ -1482,7 +1532,7 @@ function navigate(pageId) {
       loadScheduleInfo();
     }
     if (currentUser && currentUser.role === 'kepsek') {
-      loadScheduleInfo();
+      loadKepsekScheduleInfo();
     }
   } else if (pageId === 'Attendance') {
     setTimeout(function () { initCamera(); loadTodayStatus(); }, 100);
@@ -1531,13 +1581,17 @@ function populateYears() {
 
 // ==================== INITIALIZATION ====================
 document.addEventListener('DOMContentLoaded', function () {
-  console.log('🚀 Aplikasi dimulai v23.0 - KHUSUS PAPUA (WIT) - FIX Sat D + Modal Konfirmasi');
+  console.log('🚀 Aplikasi dimulai v24.0 - KHUSUS PAPUA (WIT)');
   console.log('📅 Jam Masuk: 07:00-08:30 WIT');
   console.log('📅 Senin-Rabu Pulang: 12:00-12:15 WIT');
   console.log('📅 Kamis-Jumat Pulang: 12:00 WIT');
 
+  // Update clock setiap detik
   updateClock();
   setInterval(updateClock, 1000);
+
+  // INIT DARK MODE (harus dipanggil)
+  initDarkMode();
 
   var path = window.location.pathname;
   var isDashboard = path.includes('dashboard-');
@@ -1565,7 +1619,7 @@ document.addEventListener('DOMContentLoaded', function () {
       loadAdminScheduleInfo();
     }
     if (role === 'kepsek') {
-      loadScheduleInfo();
+      loadKepsekScheduleInfo();
     }
 
     document.querySelectorAll('.nav-item').forEach(function (item) {
@@ -1583,6 +1637,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
     var changePwBtn = document.getElementById('changePwBtn');
     if (changePwBtn) changePwBtn.addEventListener('click', changePassword);
+
+    // Modal close buttons
+    document.getElementById('closeAddModalBtn')?.addEventListener('click', () => closeModal('addTeacherModal'));
+    document.getElementById('closeEditModalBtn')?.addEventListener('click', () => closeModal('editTeacherModal'));
+    document.getElementById('closePwModalBtn')?.addEventListener('click', () => closeModal('changePwModal'));
 
     if (role === 'guru') {
       var capture = document.getElementById('captureBtn');
@@ -1693,5 +1752,5 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  console.log('✅ Aplikasi siap digunakan v23.0 - Khusus Papua (WIT) - FIX Sat D + Modal Konfirmasi');
+  console.log('✅ Aplikasi siap digunakan v24.0 - Khusus Papua (WIT)');
 });
