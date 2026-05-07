@@ -637,12 +637,20 @@ body {
     flex-shrink: 0;
 }
 
+/* PERUBAHAN DI SINI: hapus nowrap, tambahkan wrap */
 .user-chip .user-name {
     font-size: 13px;
     font-weight: 700;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;
+    /* Ganti: nowrap → normal (bisa pindah baris) */
+    word-wrap: break-word;
+    /* Paksa kata panjang pindah baris */
+    word-break: break-word;
+    /* Potong kata jika perlu */
+    line-height: 1.5;
+    /* Jarak antar baris */
+    max-width: 140px;
+    /* Maksimal lebar sebelum wrap */
     color: var(--text);
 }
 
@@ -650,6 +658,7 @@ body {
     font-size: 11px;
     color: var(--text2);
     font-weight: 500;
+    white-space: normal;
 }
 
 .btn-logout {
