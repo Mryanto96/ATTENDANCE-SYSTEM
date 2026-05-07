@@ -1,27 +1,18 @@
 // ============================================================
-// SISTEM ABSENSI DIGITAL - FRONTEND
-// Versi: 24.0 - KHUSUS PAPUA (WIT)
-// FIX: Dark Mode berfungsi di DOMContentLoaded
-// FIX: Tanggal dan jam sesuai WIT
-// FIX: Jadwal Kepsek menampilkan semua hari
+// SISTEM ABSENSI DIGITAL - FRONTEND JS v4.0
+// Fix: updateSettings via apiCallPost
+// Fix: Jam & Tanggal WIT konsisten di semua dashboard
+// Fix: Tidak ada konflik fungsi duplikat
+// Fix: Dark mode stabil
 // ============================================================
 
-const API_URL = "https://script.google.com/macros/s/AKfycbyx5A3o5GzcMD7kWrHnRhrmWvJjEHVHFbTBPMYPGwD5Fs-4bxy8Ejblqyemb4bxUPar/exec";
-
-let currentUser = null;
-let isSubmitting = false;
-let otpTimer = null;
-let forgotEmailGlobal = '';
-let pendingBlockAction = null;
-
-// Camera & Location variables
-let mediaStream = null;
-let capturedPhoto = null;
-let currentLocation = null;
+'use strict';
 
 // ============================================================
-// DEFAULT ADMIN ACCOUNT
+// KONFIGURASI
 // ============================================================
+const API_URL = "https://script.google.com/macros/s/AKfycbyAiP5NvqqJDqxATOD1d_KmSfiRlJN9241jQUYoaqnddk25ahVFBOH52sdlVlHx_ASo/exec";
+
 const DEFAULT_ADMIN = {
   email: 'admin@sekolah.com',
   password: 'admin123',
@@ -30,214 +21,158 @@ const DEFAULT_ADMIN = {
   status: 'Verified'
 };
 
-// ==================== PAPUA TIME HELPER (WIT) ====================
-function getPapuaTime() {
-  // WIT = UTC+9
+// ============================================================
+// STATE GLOBAL
+// ============================================================
+let currentUser = null;
+let isSubmitting = false;
+let otpTimer = null;
+let forgotEmailGlobal = '';
+let mediaStream = null;
+let capturedPhoto = null;
+let currentLocation = null;
+let clockInterval = null;
+
+// ============================================================
+// WAKTU WIT (UTC+9) — SATU SUMBER, DIPAKAI SEMUA
+// ============================================================
+function getWITDate() {
   const now = new Date();
   const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
   return new Date(utc + (3600000 * 9));
 }
 
-function formatPapuaTime(date, format) {
-  const witDate = getPapuaTime();
-  const year = witDate.getFullYear();
-  const month = String(witDate.getMonth() + 1).padStart(2, '0');
-  const day = String(witDate.getDate()).padStart(2, '0');
-  const hours = String(witDate.getHours()).padStart(2, '0');
-  const minutes = String(witDate.getMinutes()).padStart(2, '0');
-  const seconds = String(witDate.getSeconds()).padStart(2, '0');
+function formatWIT(format) {
+  const d = getWITDate();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  const seconds = String(d.getSeconds()).padStart(2, '0');
 
-  if (format === "yyyy-MM-dd") return year + '-' + month + '-' + day;
-  if (format === "HH:mm") return hours + ':' + minutes;
-  if (format === "HH:mm:ss") return hours + ':' + minutes + ':' + seconds;
-  return hours + ':' + minutes;
-}
-
-function updateClock() {
-  const now = getPapuaTime();
-  const dateEl = document.getElementById('dateStr');
-  const timeEl = document.getElementById('timeStr');
-
-  if (dateEl) {
-    dateEl.textContent = now.toLocaleDateString('id-ID', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-      timeZone: 'Asia/Jayapura'
-    });
-  }
-  if (timeEl) {
-    timeEl.textContent = now.toLocaleTimeString('id-ID', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      timeZone: 'Asia/Jayapura'
-    });
-  }
-}
-
-// ==================== FORMAT TIME HELPER ====================
-function formatTimeFromBackend(value) {
-  if (!value) return null;
-
-  if (typeof value === 'string' && /^\d{2}:\d{2}$/.test(value)) return value;
-  if (typeof value === 'string' && /^\d{1,2}:\d{2}$/.test(value)) {
-    var parts = value.split(':');
-    var hours = parseInt(parts[0]);
-    var minutes = parts[1];
-    return String(hours).padStart(2, '0') + ':' + minutes;
-  }
-  if (typeof value === 'string' && /^\d{2}:\d{2}:\d{2}$/.test(value)) {
-    return value.substring(0, 5);
-  }
-  if (typeof value === 'string' && value.indexOf('T') !== -1) {
-    var match = value.match(/T(\d{2}):(\d{2}):/);
-    if (match) return match[1] + ':' + match[2];
-    match = value.match(/(\d{2}):(\d{2}):/);
-    if (match) return match[1] + ':' + match[2];
-  }
-  if (typeof value === 'number') {
-    var totalMinutes = Math.round(value * 24 * 60);
-    var hours = Math.floor(totalMinutes / 60);
-    var minutes = totalMinutes % 60;
-    return String(hours).padStart(2, '0') + ':' + String(minutes).padStart(2, '0');
-  }
-  var str = value.toString();
-  return str.substring(0, 5);
+  if (format === 'yyyy-MM-dd') return `${year}-${month}-${day}`;
+  if (format === 'HH:mm') return `${hours}:${minutes}`;
+  if (format === 'HH:mm:ss') return `${hours}:${minutes}:${seconds}`;
+  return `${hours}:${minutes}`;
 }
 
 function timeToMinutes(timeStr) {
   if (!timeStr) return 0;
   const parts = timeStr.toString().split(':');
-  const hours = parseInt(parts[0]) || 0;
-  const minutes = parseInt(parts[1]) || 0;
-  return hours * 60 + minutes;
+  return (parseInt(parts[0]) || 0) * 60 + (parseInt(parts[1]) || 0);
 }
 
-// ==================== DARK MODE ====================
-function initDarkMode() {
-  const darkModeBtn = document.getElementById('darkModeBtn');
-  if (!darkModeBtn) return;
+// ============================================================
+// CLOCK — Update setiap detik, konsisten WIT
+// ============================================================
+function updateClock() {
+  const d = getWITDate();
 
-  const sunIcon = darkModeBtn.querySelector('.sun-icon');
-  const moonIcon = darkModeBtn.querySelector('.moon-icon');
-  const toggleText = darkModeBtn.querySelector('.toggle-text');
+  const HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+  const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 
-  // Cek preferensi yang tersimpan
-  const savedMode = localStorage.getItem('darkMode');
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const dateStr = `${HARI[d.getDay()]}, ${d.getDate()} ${BULAN[d.getMonth()]} ${d.getFullYear()}`;
+  const timeStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')} WIT`;
 
-  // Set mode awal
-  if (savedMode === 'enabled' || (!savedMode && prefersDark)) {
-    document.body.classList.add('dark-mode');
-    if (sunIcon) sunIcon.style.display = 'none';
-    if (moonIcon) moonIcon.style.display = 'block';
-    if (toggleText) toggleText.textContent = 'Light';
-  } else {
-    document.body.classList.remove('dark-mode');
-    if (sunIcon) sunIcon.style.display = 'block';
-    if (moonIcon) moonIcon.style.display = 'none';
-    if (toggleText) toggleText.textContent = 'Dark';
+  // Update semua elemen dateStr & timeStr di halaman
+  document.querySelectorAll('#dateStr').forEach(el => { el.textContent = dateStr; });
+  document.querySelectorAll('#timeStr').forEach(el => { el.textContent = timeStr; });
+}
+
+function startClock() {
+  if (clockInterval) clearInterval(clockInterval);
+  updateClock();
+  clockInterval = setInterval(updateClock, 1000);
+}
+
+// ============================================================
+// FORMAT TIME FROM BACKEND / SHEET
+// ============================================================
+function formatTimeFromBackend(value) {
+  if (!value && value !== 0) return null;
+
+  if (typeof value === 'string') {
+    if (/^\d{2}:\d{2}$/.test(value)) return value;
+    if (/^\d{1,2}:\d{2}$/.test(value)) {
+      const p = value.split(':');
+      return String(parseInt(p[0])).padStart(2, '0') + ':' + p[1];
+    }
+    if (/^\d{2}:\d{2}:\d{2}$/.test(value)) return value.substring(0, 5);
+    if (value.indexOf('T') !== -1) {
+      const m = value.match(/T(\d{2}):(\d{2}):/);
+      if (m) return m[1] + ':' + m[2];
+    }
   }
 
-  // Event listener untuk toggle
-  darkModeBtn.addEventListener('click', function () {
-    const isDark = document.body.classList.toggle('dark-mode');
+  if (typeof value === 'number') {
+    const totalMin = Math.round(value * 24 * 60);
+    const h = Math.floor(totalMin / 60) % 24;
+    const min = totalMin % 60;
+    return String(h).padStart(2, '0') + ':' + String(min).padStart(2, '0');
+  }
 
+  const str = value.toString().trim();
+  return str.length >= 5 ? str.substring(0, 5) : str;
+}
+
+// ============================================================
+// DARK MODE
+// ============================================================
+function initDarkMode() {
+  const btn = document.getElementById('darkModeBtn');
+  if (!btn) return;
+
+  const sunIcon = btn.querySelector('.sun-icon');
+  const moonIcon = btn.querySelector('.moon-icon');
+  const toggleText = btn.querySelector('.toggle-text');
+
+  function applyMode(isDark) {
     if (isDark) {
-      localStorage.setItem('darkMode', 'enabled');
+      document.body.classList.add('dark-mode');
       if (sunIcon) sunIcon.style.display = 'none';
       if (moonIcon) moonIcon.style.display = 'block';
       if (toggleText) toggleText.textContent = 'Light';
     } else {
-      localStorage.setItem('darkMode', 'disabled');
+      document.body.classList.remove('dark-mode');
       if (sunIcon) sunIcon.style.display = 'block';
       if (moonIcon) moonIcon.style.display = 'none';
       if (toggleText) toggleText.textContent = 'Dark';
     }
-  });
-}
-
-// ==================== MODAL KONFIRMASI ====================
-function showConfirmModal(title, message, onConfirm, onCancel) {
-  let modal = document.getElementById('confirmModal');
-  if (!modal) {
-    modal = document.createElement('div');
-    modal.id = 'confirmModal';
-    modal.className = 'modal-overlay';
-    modal.innerHTML = `
-      <div class="modal-container" style="max-width:400px">
-        <div class="modal-header">
-          <h3 id="confirmTitle">Konfirmasi</h3>
-          <button class="close-modal">&times;</button>
-        </div>
-        <div class="modal-body">
-          <p id="confirmMessage">Apakah Anda yakin?</p>
-        </div>
-        <div class="modal-footer" style="display:flex;gap:10px;justify-content:flex-end">
-          <button id="confirmCancelBtn" class="btn-secondary">Batal</button>
-          <button id="confirmOkBtn" class="btn-primary">Ya, Lanjutkan</button>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(modal);
   }
 
-  document.getElementById('confirmTitle').textContent = title;
-  document.getElementById('confirmMessage').textContent = message;
+  const saved = localStorage.getItem('darkMode');
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  applyMode(saved === 'enabled' || (!saved && prefersDark));
 
-  const closeBtn = modal.querySelector('.close-modal');
-  const cancelBtn = document.getElementById('confirmCancelBtn');
-  const okBtn = document.getElementById('confirmOkBtn');
-
-  const closeModal = () => {
-    modal.classList.remove('open');
-    if (onCancel) onCancel();
-  };
-
-  const confirmAction = () => {
-    modal.classList.remove('open');
-    if (onConfirm) onConfirm();
-  };
-
-  const newCloseBtn = closeBtn.cloneNode(true);
-  closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
-
-  const newCancelBtn = cancelBtn.cloneNode(true);
-  cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
-
-  const newOkBtn = okBtn.cloneNode(true);
-  okBtn.parentNode.replaceChild(newOkBtn, okBtn);
-
-  newCloseBtn.addEventListener('click', closeModal);
-  newCancelBtn.addEventListener('click', closeModal);
-  newOkBtn.addEventListener('click', confirmAction);
-
-  modal.addEventListener('click', function (e) {
-    if (e.target === modal) closeModal();
+  btn.addEventListener('click', function () {
+    const isDark = document.body.classList.toggle('dark-mode');
+    localStorage.setItem('darkMode', isDark ? 'enabled' : 'disabled');
+    applyMode(isDark);
   });
-
-  modal.classList.add('open');
 }
 
-// ==================== JSONP API CALL ====================
+// ============================================================
+// API — JSONP (GET)
+// ============================================================
 function apiCall(params) {
   return new Promise((resolve) => {
     const cbName = 'cb_' + Date.now() + '_' + Math.random().toString(36).slice(2);
     let url = API_URL + '?callback=' + cbName;
+
     for (const key in params) {
       if (params[key] !== undefined && params[key] !== null && params[key] !== '') {
         url += '&' + encodeURIComponent(key) + '=' + encodeURIComponent(params[key]);
       }
     }
-    url += '&_=' + Date.now();
+    url += '&_t=' + Date.now();
 
-    console.log('📡 JSONP Request:', url);
+    console.log('📡 JSONP:', params.action, url.substring(0, 120) + '...');
 
     const timeout = setTimeout(() => {
       cleanup();
-      resolve({ status: 'error', message: 'Request timeout. Periksa koneksi internet Anda.' });
+      resolve({ status: 'error', message: 'Request timeout. Periksa koneksi internet.' });
     }, 20000);
 
     function cleanup() {
@@ -248,7 +183,7 @@ function apiCall(params) {
     }
 
     window[cbName] = function (data) {
-      console.log('✅ JSONP Response:', data);
+      console.log('✅ JSONP Response:', params.action, data);
       cleanup();
       resolve(data);
     };
@@ -257,7 +192,6 @@ function apiCall(params) {
     script.id = cbName;
     script.src = url;
     script.onerror = function () {
-      console.error('❌ JSONP Error:', url);
       cleanup();
       resolve({ status: 'error', message: 'Gagal terhubung ke server. Coba lagi.' });
     };
@@ -265,14 +199,16 @@ function apiCall(params) {
   });
 }
 
-// ==================== POST API CALL ====================
+// ============================================================
+// API — POST (untuk checkIn, checkOut, updateSettings)
+// ============================================================
 function apiCallPost(data) {
   return new Promise((resolve) => {
-    const timeout = setTimeout(() => {
-      resolve({ status: 'error', message: 'Request timeout. Periksa koneksi internet Anda.' });
-    }, 30000);
+    console.log('📡 POST:', data.action);
 
-    console.log('📡 POST Request action:', data.action);
+    const timeout = setTimeout(() => {
+      resolve({ status: 'error', message: 'Request timeout. Periksa koneksi internet.' });
+    }, 30000);
 
     fetch(API_URL, {
       method: 'POST',
@@ -282,7 +218,7 @@ function apiCallPost(data) {
       .then(res => res.json())
       .then(result => {
         clearTimeout(timeout);
-        console.log('✅ POST Response:', result);
+        console.log('✅ POST Response:', data.action, result);
         resolve(result);
       })
       .catch(err => {
@@ -293,25 +229,18 @@ function apiCallPost(data) {
   });
 }
 
-// ==================== UI HELPERS ====================
-function showMsg(id, type, text, isAuth = true) {
+// ============================================================
+// UI HELPERS
+// ============================================================
+function showMsg(id, type, text, isAuth = false) {
   const el = document.getElementById(id);
   if (!el) return;
-
-  if (isAuth) {
-    el.className = 'msg-two ' + type + ' show';
-  } else {
-    el.className = 'msg ' + type + ' show';
-  }
+  el.className = (isAuth ? 'msg-two ' : 'msg ') + type + ' show';
   el.textContent = text;
   setTimeout(() => {
     if (el.classList.contains('show')) {
       el.classList.remove('show');
-      if (isAuth) {
-        el.className = 'msg-two';
-      } else {
-        el.className = 'msg';
-      }
+      el.className = isAuth ? 'msg-two' : 'msg';
       el.textContent = '';
     }
   }, 5000);
@@ -326,19 +255,17 @@ function setBtn(id, loading, text) {
 
 function formatDate(str) {
   if (!str) return '-';
-  const d = new Date(str);
-  if (isNaN(d)) {
-    const parts = str.split('-');
-    if (parts.length === 3) {
-      const d2 = new Date(parts[0], parts[1] - 1, parts[2]);
-      return d2.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
-    }
-    return str;
+  const parts = str.toString().split('-');
+  if (parts.length === 3) {
+    const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
   }
-  return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
+  return str;
 }
 
-// ==================== AUTH ====================
+// ============================================================
+// AUTH HELPERS
+// ============================================================
 function saveAuth(userData) {
   currentUser = userData;
   sessionStorage.setItem('absensiUser', JSON.stringify(userData));
@@ -346,20 +273,25 @@ function saveAuth(userData) {
 
 function checkAuth() {
   const stored = sessionStorage.getItem('absensiUser');
-  if (stored) {
-    try { currentUser = JSON.parse(stored); return true; }
-    catch (e) { return false; }
+  if (!stored) return false;
+  try {
+    currentUser = JSON.parse(stored);
+    return !!currentUser;
+  } catch (e) {
+    return false;
   }
-  return false;
 }
 
 function logout() {
   sessionStorage.removeItem('absensiUser');
   currentUser = null;
+  if (clockInterval) clearInterval(clockInterval);
   window.location.href = 'index.html';
 }
 
-// ==================== LOGIN ====================
+// ============================================================
+// LOGIN
+// ============================================================
 async function handleLogin(e) {
   if (e) e.preventDefault();
 
@@ -371,12 +303,11 @@ async function handleLogin(e) {
     return;
   }
 
+  // Default admin
   if (email === DEFAULT_ADMIN.email && password === DEFAULT_ADMIN.password) {
     saveAuth(DEFAULT_ADMIN);
     showMsg('loginMsg', 'success', 'Login sebagai Admin! Mengarahkan...', true);
-    setTimeout(() => {
-      window.location.href = 'dashboard-admin.html';
-    }, 800);
+    setTimeout(() => { window.location.href = 'dashboard-admin.html'; }, 800);
     return;
   }
 
@@ -405,7 +336,9 @@ async function handleLogin(e) {
   }
 }
 
-// ==================== REGISTER ====================
+// ============================================================
+// REGISTER
+// ============================================================
 async function handleRegister(e) {
   if (e) e.preventDefault();
 
@@ -418,12 +351,10 @@ async function handleRegister(e) {
     showMsg('registerMsg', 'error', 'Semua field wajib diisi', true);
     return;
   }
-
   if (password.length < 6) {
     showMsg('registerMsg', 'error', 'Password minimal 6 karakter', true);
     return;
   }
-
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     showMsg('registerMsg', 'error', 'Format email tidak valid', true);
     return;
@@ -438,19 +369,36 @@ async function handleRegister(e) {
 
   if (result.status === 'success') {
     showMsg('registerMsg', 'success', result.message, true);
-    document.getElementById('regNama').value = '';
-    document.getElementById('regEmail').value = '';
-    document.getElementById('regPassword').value = '';
+    ['regNama', 'regEmail', 'regPassword'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
     setTimeout(() => {
       switchAuthTab('login');
-      document.getElementById('loginEmail').value = email;
+      const loginEmail = document.getElementById('loginEmail');
+      if (loginEmail) loginEmail.value = email;
     }, 2500);
   } else {
     showMsg('registerMsg', 'error', result.message || 'Registrasi gagal', true);
   }
 }
 
-// ==================== RESEND VERIFICATION ====================
+// ============================================================
+// AUTH TAB SWITCH
+// ============================================================
+function switchAuthTab(tabName) {
+  document.querySelectorAll('.tab-two').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.auth-form-panel').forEach(p => p.classList.remove('active'));
+
+  const tab = document.querySelector(`.tab-two[data-tab="${tabName}"]`);
+  const panel = document.getElementById(`panel-${tabName}`);
+  if (tab) tab.classList.add('active');
+  if (panel) panel.classList.add('active');
+}
+
+// ============================================================
+// RESEND VERIFICATION
+// ============================================================
 async function resendVerif() {
   const email = document.getElementById('loginEmail')?.value?.trim();
   if (!email) { showMsg('loginMsg', 'error', 'Masukkan email terlebih dahulu', true); return; }
@@ -459,32 +407,34 @@ async function resendVerif() {
   showMsg('loginMsg', r.status === 'success' ? 'success' : 'error', r.message, true);
 }
 
-// ==================== OTP / FORGOT PASSWORD ====================
+// ============================================================
+// FORGOT PASSWORD — OTP
+// ============================================================
 function openForgotModal() {
-  document.getElementById('step1').classList.add('active');
-  document.getElementById('step2').classList.remove('active');
-  document.getElementById('step3').classList.remove('active');
-  document.getElementById('forgotEmail').value = '';
-  document.getElementById('otpInput').value = '';
-  document.getElementById('newPwd').value = '';
-  document.getElementById('confirmPwd').value = '';
-  const msgEl = document.getElementById('forgotMsg');
-  if (msgEl) { msgEl.className = 'msg'; msgEl.textContent = ''; }
+  ['step1', 'step2', 'step3'].forEach(s => document.getElementById(s)?.classList.remove('active'));
+  document.getElementById('step1')?.classList.add('active');
+  ['forgotEmail', 'otpInput', 'newPwd', 'confirmPwd'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  clearForgotMsg();
   if (otpTimer) clearInterval(otpTimer);
-  document.getElementById('forgotModal').classList.add('open');
+  document.getElementById('forgotModal')?.classList.add('open');
 }
 
 function closeForgotModal() {
-  const modal = document.getElementById('forgotModal');
-  if (modal) modal.classList.remove('open');
+  document.getElementById('forgotModal')?.classList.remove('open');
   if (otpTimer) clearInterval(otpTimer);
 }
 
-function goStep(stepName) {
-  document.getElementById('step1').classList.remove('active');
-  document.getElementById('step2').classList.remove('active');
-  document.getElementById('step3').classList.remove('active');
-  document.getElementById(stepName).classList.add('active');
+function goStep(stepId) {
+  ['step1', 'step2', 'step3'].forEach(s => document.getElementById(s)?.classList.remove('active'));
+  document.getElementById(stepId)?.classList.add('active');
+}
+
+function clearForgotMsg() {
+  const el = document.getElementById('forgotMsg');
+  if (el) { el.className = 'msg'; el.textContent = ''; }
 }
 
 function startOtpCountdown() {
@@ -492,111 +442,105 @@ function startOtpCountdown() {
   const el = document.getElementById('otpTimer');
   if (otpTimer) clearInterval(otpTimer);
 
-  function tick() {
+  const tick = () => {
     if (!el) return;
     const m = Math.floor(secs / 60);
     const s = secs % 60;
-    el.textContent = 'OTP berlaku: ' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
-    if (secs <= 0) {
-      clearInterval(otpTimer);
-      el.textContent = 'OTP telah kadaluarsa';
-    }
+    el.textContent = `OTP berlaku: ${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    if (secs <= 0) { clearInterval(otpTimer); el.textContent = 'OTP telah kadaluarsa'; }
     secs--;
-  }
+  };
   tick();
   otpTimer = setInterval(tick, 1000);
 }
 
 async function sendOtp() {
   const email = document.getElementById('forgotEmail')?.value?.trim();
-  if (!email) { showMsg('forgotMsg', 'error', 'Masukkan email Anda', false); return; }
+  if (!email) { showMsg('forgotMsg', 'error', 'Masukkan email Anda'); return; }
   forgotEmailGlobal = email;
   setBtn('sendOtpBtn', true, 'Kirim Kode OTP');
-  showMsg('forgotMsg', 'loading', 'Mengirim OTP...', false);
+  showMsg('forgotMsg', 'loading', 'Mengirim OTP...');
 
   const r = await apiCall({ action: 'sendPasswordResetOTP', email });
-
   setBtn('sendOtpBtn', false, 'Kirim Kode OTP');
+
   if (r.status === 'success') {
-    showMsg('forgotMsg', 'success', r.message, false);
-    setTimeout(() => {
-      goStep('step2');
-      const msgEl = document.getElementById('forgotMsg');
-      if (msgEl) { msgEl.className = 'msg'; msgEl.textContent = ''; }
-      startOtpCountdown();
-    }, 800);
+    showMsg('forgotMsg', 'success', r.message);
+    setTimeout(() => { goStep('step2'); clearForgotMsg(); startOtpCountdown(); }, 800);
   } else {
-    showMsg('forgotMsg', 'error', r.message, false);
+    showMsg('forgotMsg', 'error', r.message);
   }
 }
 
 async function resendOtp() {
   if (!forgotEmailGlobal) return;
-  showMsg('forgotMsg', 'loading', 'Mengirim ulang OTP...', false);
+  showMsg('forgotMsg', 'loading', 'Mengirim ulang OTP...');
   const r = await apiCall({ action: 'sendPasswordResetOTP', email: forgotEmailGlobal });
-  showMsg('forgotMsg', r.status === 'success' ? 'success' : 'error', r.message, false);
+  showMsg('forgotMsg', r.status === 'success' ? 'success' : 'error', r.message);
   if (r.status === 'success') startOtpCountdown();
 }
 
 async function verifyOtp() {
   const otp = document.getElementById('otpInput')?.value?.trim();
-  if (!otp || otp.length !== 6) { showMsg('forgotMsg', 'error', 'Masukkan 6 digit OTP', false); return; }
+  if (!otp || otp.length !== 6) { showMsg('forgotMsg', 'error', 'Masukkan 6 digit OTP'); return; }
   setBtn('verifyOtpBtn', true, 'Verifikasi');
-  showMsg('forgotMsg', 'loading', 'Memverifikasi...', false);
+  showMsg('forgotMsg', 'loading', 'Memverifikasi...');
 
   const r = await apiCall({ action: 'verifyOTP', email: forgotEmailGlobal, otp });
-
   setBtn('verifyOtpBtn', false, 'Verifikasi');
+
   if (r.status === 'success') {
     if (otpTimer) clearInterval(otpTimer);
-    showMsg('forgotMsg', 'success', 'OTP valid!', false);
-    setTimeout(() => {
-      goStep('step3');
-      const msgEl = document.getElementById('forgotMsg');
-      if (msgEl) { msgEl.className = 'msg'; msgEl.textContent = ''; }
-    }, 600);
+    showMsg('forgotMsg', 'success', 'OTP valid!');
+    setTimeout(() => { goStep('step3'); clearForgotMsg(); }, 600);
   } else {
-    showMsg('forgotMsg', 'error', r.message, false);
+    showMsg('forgotMsg', 'error', r.message);
   }
 }
 
 async function doResetPassword() {
   const pwd = document.getElementById('newPwd')?.value;
   const confirm = document.getElementById('confirmPwd')?.value;
-  if (!pwd || pwd.length < 6) { showMsg('forgotMsg', 'error', 'Password minimal 6 karakter', false); return; }
-  if (pwd !== confirm) { showMsg('forgotMsg', 'error', 'Konfirmasi password tidak cocok', false); return; }
+  if (!pwd || pwd.length < 6) { showMsg('forgotMsg', 'error', 'Password minimal 6 karakter'); return; }
+  if (pwd !== confirm) { showMsg('forgotMsg', 'error', 'Konfirmasi password tidak cocok'); return; }
 
   setBtn('resetPwdBtn', true, 'Simpan');
-  showMsg('forgotMsg', 'loading', 'Menyimpan...', false);
+  showMsg('forgotMsg', 'loading', 'Menyimpan...');
 
   const r = await apiCall({ action: 'resetPassword', email: forgotEmailGlobal, newPassword: pwd });
-
   setBtn('resetPwdBtn', false, 'Simpan');
+
   if (r.status === 'success') {
-    showMsg('forgotMsg', 'success', 'Password berhasil direset! Silakan login.', false);
+    showMsg('forgotMsg', 'success', 'Password berhasil direset! Silakan login.');
     setTimeout(() => closeForgotModal(), 2000);
   } else {
-    showMsg('forgotMsg', 'error', r.message, false);
+    showMsg('forgotMsg', 'error', r.message);
   }
 }
 
-// ==================== SCHOOL NAME ====================
+// ============================================================
+// SCHOOL NAME
+// ============================================================
 async function loadSchoolName() {
   const r = await apiCall({ action: 'getSettings' });
   if (r.status === 'success' && r.data?.school_name?.value) {
-    const el = document.getElementById('schoolName');
-    if (el) el.textContent = r.data.school_name.value;
+    document.querySelectorAll('#schoolName').forEach(el => {
+      el.textContent = r.data.school_name.value;
+    });
   }
 }
 
-// ==================== DASHBOARD PROFILE ====================
+// ============================================================
+// PROFILE
+// ============================================================
 function loadProfile() {
   if (!currentUser) return;
-  const nameEls = ['userName', 'profileName'];
-  nameEls.forEach(id => {
+
+  ['userName', 'profileName'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.textContent = currentUser.nama;
   });
+
   const emailEl = document.getElementById('profileEmail');
   if (emailEl) emailEl.textContent = currentUser.email;
 
@@ -606,11 +550,18 @@ function loadProfile() {
 
   const avatarEl = document.getElementById('userAvatar');
   if (avatarEl && currentUser.nama) {
-    avatarEl.textContent = currentUser.nama.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+    avatarEl.textContent = currentUser.nama
+      .split(' ')
+      .map(w => w[0])
+      .slice(0, 2)
+      .join('')
+      .toUpperCase();
   }
 }
 
-// ==================== CAMERA FUNCTIONS ====================
+// ============================================================
+// CAMERA
+// ============================================================
 async function initCamera() {
   try {
     if (mediaStream) stopCamera();
@@ -622,12 +573,7 @@ async function initCamera() {
     }
     return true;
   } catch (e) {
-    const msgEl = document.getElementById('attendMsg');
-    if (msgEl) {
-      msgEl.className = 'msg error show';
-      msgEl.textContent = 'Tidak dapat mengakses kamera: ' + e.message;
-      setTimeout(() => { if (msgEl.classList.contains('show')) { msgEl.classList.remove('show'); msgEl.className = 'msg'; msgEl.textContent = ''; } }, 5000);
-    }
+    showMsg('attendMsg', 'error', 'Tidak dapat mengakses kamera: ' + e.message);
     return false;
   }
 }
@@ -675,7 +621,9 @@ function updateAttendBtns() {
   if (co && !co.dataset.done) co.disabled = !ready;
 }
 
-// ==================== LOCATION FUNCTIONS ====================
+// ============================================================
+// LOCATION
+// ============================================================
 async function getLocation() {
   const btn = document.getElementById('getLocBtn');
   const info = document.getElementById('locationInfo');
@@ -689,11 +637,12 @@ async function getLocation() {
       resolve(false);
       return;
     }
+
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         currentLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy };
         if (info) {
-          info.textContent = '✅ Lokasi ditemukan (' + currentLocation.lat.toFixed(5) + ', ' + currentLocation.lng.toFixed(5) + ') ±' + Math.round(currentLocation.accuracy) + 'm';
+          info.textContent = `✅ Lokasi ditemukan (${currentLocation.lat.toFixed(5)}, ${currentLocation.lng.toFixed(5)}) ±${Math.round(currentLocation.accuracy)}m`;
           info.className = 'location-info found';
         }
         if (btn) { btn.disabled = false; btn.textContent = '✅ Lokasi Didapat'; }
@@ -714,12 +663,15 @@ async function getLocation() {
   });
 }
 
-// ==================== ATTENDANCE FUNCTIONS ====================
+// ============================================================
+// ATTENDANCE STATUS
+// ============================================================
 async function loadTodayStatus() {
   if (!currentUser) return;
+
   const box = document.getElementById('todayStatusBox');
   const dashBox = document.getElementById('dashAttendStatus');
-  if (box) box.innerHTML = '<div class="info-box info">Memeriksa status...</div>';
+  if (box) box.innerHTML = '<div class="info-box info">⏳ Memeriksa status...</div>';
 
   const r = await apiCall({ action: 'checkTodayAttendance', email: currentUser.email });
   if (r.status !== 'success') return;
@@ -731,13 +683,13 @@ async function loadTodayStatus() {
   if (box) {
     let html = '';
     if (d.hasCheckedIn) {
-      html += '<div class="info-box success">✅ Absen masuk: <strong>' + d.checkInTime + '</strong> di ' + (d.lokasi || '-') + '</div>';
+      html += `<div class="info-box success">✅ Absen masuk: <strong>${d.checkInTime}</strong> di ${d.lokasi || '-'}</div>`;
       if (ci) { ci.disabled = true; ci.dataset.done = '1'; }
     } else {
       html += '<div class="info-box info">📝 Belum absen masuk hari ini</div>';
     }
     if (d.hasCheckedOut) {
-      html += '<div class="info-box success">✅ Absen pulang: <strong>' + d.checkOutTime + '</strong></div>';
+      html += `<div class="info-box success">✅ Absen pulang: <strong>${d.checkOutTime}</strong></div>`;
       if (co) { co.disabled = true; co.dataset.done = '1'; }
     } else if (d.hasCheckedIn) {
       html += '<div class="info-box warning">⏰ Belum absen pulang</div>';
@@ -756,135 +708,92 @@ async function loadTodayStatus() {
   }
 }
 
-// ==================== LOAD SCHEDULE INFO ====================
-async function loadAdminScheduleInfo() {
-  const r = await apiCall({ action: 'getSettings' });
-  if (r.status !== 'success') return;
-  const s = r.data;
-  const el = document.getElementById('adminScheduleInfo');
+// ============================================================
+// SCHEDULE INFO — dipakai oleh guru, kepsek, admin
+// ============================================================
+async function loadScheduleInfo(targetElementId) {
+  const el = document.getElementById(targetElementId);
   if (!el) return;
 
-  const jadwalSeninRabu = {
-    masukMulai: formatTimeFromBackend(s.senin_rabu_masuk_mulai?.value) || '07:00',
-    masukSelesai: formatTimeFromBackend(s.senin_rabu_masuk_selesai?.value) || '08:30',
-    pulangMulai: formatTimeFromBackend(s.senin_rabu_pulang_mulai?.value) || '12:00',
-    pulangSelesai: formatTimeFromBackend(s.senin_rabu_pulang_selesai?.value) || '12:15'
-  };
+  el.innerHTML = '<div class="info-box info">⏳ Memuat jadwal...</div>';
 
-  const jadwalKamisJumat = {
-    masukMulai: formatTimeFromBackend(s.kamis_jumat_masuk_mulai?.value) || '07:00',
-    masukSelesai: formatTimeFromBackend(s.kamis_jumat_masuk_selesai?.value) || '08:30',
-    pulangMulai: formatTimeFromBackend(s.kamis_jumat_pulang_mulai?.value) || '12:00',
-    pulangSelesai: formatTimeFromBackend(s.kamis_jumat_pulang_selesai?.value) || '12:00'
-  };
-
-  el.innerHTML = `
-    <div class="info-box info">
-      <strong>📅 Senin – Rabu</strong><br>
-      🟢 Masuk: ${jadwalSeninRabu.masukMulai} – ${jadwalSeninRabu.masukSelesai} WIT<br>
-      🔴 Pulang: ${jadwalSeninRabu.pulangMulai} – ${jadwalSeninRabu.pulangSelesai} WIT
-    </div>
-    <div class="info-box info" style="margin-top: 10px;">
-      <strong>📅 Kamis – Jumat</strong><br>
-      🟢 Masuk: ${jadwalKamisJumat.masukMulai} – ${jadwalKamisJumat.masukSelesai} WIT<br>
-      🔴 Pulang: ${jadwalKamisJumat.pulangMulai} – ${jadwalKamisJumat.pulangSelesai} WIT
-    </div>
-  `;
-}
-
-async function loadKepsekScheduleInfo() {
   const r = await apiCall({ action: 'getSettings' });
-  if (r.status !== 'success') return;
-  const s = r.data;
-  const el = document.getElementById('kepsekScheduleInfo');  // ✅ Sesuai dengan HTML
-  if (!el) return;
-
-  const jadwalSeninRabu = {
-    masukMulai: formatTimeFromBackend(s.senin_rabu_masuk_mulai?.value) || '07:00',
-    masukSelesai: formatTimeFromBackend(s.senin_rabu_masuk_selesai?.value) || '08:30',
-    pulangMulai: formatTimeFromBackend(s.senin_rabu_pulang_mulai?.value) || '12:00',
-    pulangSelesai: formatTimeFromBackend(s.senin_rabu_pulang_selesai?.value) || '12:15'
-  };
-
-  const jadwalKamisJumat = {
-    masukMulai: formatTimeFromBackend(s.kamis_jumat_masuk_mulai?.value) || '07:00',
-    masukSelesai: formatTimeFromBackend(s.kamis_jumat_masuk_selesai?.value) || '08:30',
-    pulangMulai: formatTimeFromBackend(s.kamis_jumat_pulang_mulai?.value) || '12:00',
-    pulangSelesai: formatTimeFromBackend(s.kamis_jumat_pulang_selesai?.value) || '12:00'
-  };
-
-  el.innerHTML = `
-    <div class="info-box info">
-      <strong>📅 Senin – Rabu</strong><br>
-      🟢 Masuk: ${jadwalSeninRabu.masukMulai} – ${jadwalSeninRabu.masukSelesai} WIT<br>
-      🔴 Pulang: ${jadwalSeninRabu.pulangMulai} – ${jadwalSeninRabu.pulangSelesai} WIT
-    </div>
-    <div class="info-box info" style="margin-top: 10px;">
-      <strong>📅 Kamis – Jumat</strong><br>
-      🟢 Masuk: ${jadwalKamisJumat.masukMulai} – ${jadwalKamisJumat.masukSelesai} WIT<br>
-      🔴 Pulang: ${jadwalKamisJumat.pulangMulai} – ${jadwalKamisJumat.pulangSelesai} WIT
-    </div>
-  `;
-}
-
-async function loadScheduleInfo() {
-  const r = await apiCall({ action: 'getSettings' });
-  if (r.status !== 'success') return;
-  const s = r.data;
-  const now = getPapuaTime();
-  const day = now.getDay();
-  const el = document.getElementById('scheduleInfo');
-  if (!el) return;
-
-  if (day === 0 || day === 6) {
-    el.innerHTML = '<div class="info-box warning">🏖️ Hari ini libur akhir pekan</div>';
+  if (r.status !== 'success') {
+    el.innerHTML = '<div class="info-box warning">⚠️ Gagal memuat jadwal</div>';
     return;
   }
 
-  let label, jadwal;
-  if (day >= 1 && day <= 3) {
-    label = 'Senin – Rabu';
-    jadwal = {
-      masukMulai: formatTimeFromBackend(s.senin_rabu_masuk_mulai?.value) || '07:00',
-      masukSelesai: formatTimeFromBackend(s.senin_rabu_masuk_selesai?.value) || '08:30',
-      pulangMulai: formatTimeFromBackend(s.senin_rabu_pulang_mulai?.value) || '12:00',
-      pulangSelesai: formatTimeFromBackend(s.senin_rabu_pulang_selesai?.value) || '12:15'
-    };
-  } else {
-    label = 'Kamis – Jumat';
-    jadwal = {
-      masukMulai: formatTimeFromBackend(s.kamis_jumat_masuk_mulai?.value) || '07:00',
-      masukSelesai: formatTimeFromBackend(s.kamis_jumat_masuk_selesai?.value) || '08:30',
-      pulangMulai: formatTimeFromBackend(s.kamis_jumat_pulang_mulai?.value) || '12:00',
-      pulangSelesai: formatTimeFromBackend(s.kamis_jumat_pulang_selesai?.value) || '12:00'
-    };
+  const s = r.data;
+
+  const jadwalSR = {
+    masukMulai: formatTimeFromBackend(s.senin_rabu_masuk_mulai?.value) || '07:00',
+    masukSelesai: formatTimeFromBackend(s.senin_rabu_masuk_selesai?.value) || '08:30',
+    pulangMulai: formatTimeFromBackend(s.senin_rabu_pulang_mulai?.value) || '12:00',
+    pulangSelesai: formatTimeFromBackend(s.senin_rabu_pulang_selesai?.value) || '12:15'
+  };
+
+  const jadwalKJ = {
+    masukMulai: formatTimeFromBackend(s.kamis_jumat_masuk_mulai?.value) || '07:00',
+    masukSelesai: formatTimeFromBackend(s.kamis_jumat_masuk_selesai?.value) || '08:30',
+    pulangMulai: formatTimeFromBackend(s.kamis_jumat_pulang_mulai?.value) || '11:45',
+    pulangSelesai: formatTimeFromBackend(s.kamis_jumat_pulang_selesai?.value) || '12:00'
+  };
+
+  // Untuk guru: tampilkan hanya hari ini
+  const d = getWITDate();
+  const day = d.getDay();
+
+  if (targetElementId === 'scheduleInfo') {
+    // Khusus halaman guru — tampilkan hari aktif saja
+    if (day === 0 || day === 6) {
+      el.innerHTML = '<div class="info-box warning">🏖️ Hari ini libur akhir pekan</div>';
+      return;
+    }
+    const isMonWed = day >= 1 && day <= 3;
+    const label = isMonWed ? 'Senin – Rabu' : 'Kamis – Jumat';
+    const jadwal = isMonWed ? jadwalSR : jadwalKJ;
+    el.innerHTML = `
+      <div class="info-box info">
+        <strong>📅 Jadwal Hari Ini (${label})</strong><br>
+        🟢 Masuk: ${jadwal.masukMulai} – ${jadwal.masukSelesai} WIT<br>
+        🔴 Pulang: ${jadwal.pulangMulai} – ${jadwal.pulangSelesai} WIT
+      </div>`;
+    return;
   }
-  el.innerHTML = '<div class="info-box info">' +
-    '<strong>📅 ' + label + '</strong><br>' +
-    '🟢 Masuk: ' + jadwal.masukMulai + ' – ' + jadwal.masukSelesai + ' WIT<br>' +
-    '🔴 Pulang: ' + jadwal.pulangMulai + ' – ' + jadwal.pulangSelesai + ' WIT' +
-    '</div>';
+
+  // Untuk admin/kepsek — tampilkan semua jadwal
+  el.innerHTML = `
+    <div class="info-box info">
+      <strong>📅 Senin – Rabu</strong><br>
+      🟢 Masuk: ${jadwalSR.masukMulai} – ${jadwalSR.masukSelesai} WIT<br>
+      🔴 Pulang: ${jadwalSR.pulangMulai} – ${jadwalSR.pulangSelesai} WIT
+    </div>
+    <div class="info-box info" style="margin-top:10px">
+      <strong>📅 Kamis – Jumat</strong><br>
+      🟢 Masuk: ${jadwalKJ.masukMulai} – ${jadwalKJ.masukSelesai} WIT<br>
+      🔴 Pulang: ${jadwalKJ.pulangMulai} – ${jadwalKJ.pulangSelesai} WIT
+    </div>`;
 }
 
-// ==================== CHECK IN ====================
+// ============================================================
+// CHECK IN
+// ============================================================
 async function handleCheckIn() {
   if (isSubmitting) return;
+
   if (!capturedPhoto) {
-    const msgEl = document.getElementById('attendMsg');
-    if (msgEl) { msgEl.className = 'msg error show'; msgEl.textContent = 'Ambil foto selfie terlebih dahulu'; setTimeout(() => { if (msgEl.classList.contains('show')) { msgEl.classList.remove('show'); msgEl.className = 'msg'; msgEl.textContent = ''; } }, 5000); }
+    showMsg('attendMsg', 'error', 'Ambil foto selfie terlebih dahulu');
     return;
   }
   if (!currentLocation) {
-    const msgEl = document.getElementById('attendMsg');
-    if (msgEl) { msgEl.className = 'msg error show'; msgEl.textContent = 'Dapatkan lokasi Anda terlebih dahulu'; setTimeout(() => { if (msgEl.classList.contains('show')) { msgEl.classList.remove('show'); msgEl.className = 'msg'; msgEl.textContent = ''; } }, 5000); }
+    showMsg('attendMsg', 'error', 'Dapatkan lokasi Anda terlebih dahulu');
     return;
   }
 
   isSubmitting = true;
   const btn = document.getElementById('checkInBtn');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Memproses...'; }
-  const msgEl = document.getElementById('attendMsg');
-  if (msgEl) { msgEl.className = 'msg loading show'; msgEl.textContent = 'Mengirim data absen masuk...'; }
+  showMsg('attendMsg', 'loading', 'Mengirim data absen masuk...');
 
   const result = await apiCallPost({
     action: 'checkIn',
@@ -898,33 +807,33 @@ async function handleCheckIn() {
   if (btn) { btn.disabled = false; btn.textContent = '✅ Absen Masuk'; }
 
   if (result.status === 'success') {
-    if (msgEl) { msgEl.className = 'msg success show'; msgEl.textContent = result.message; setTimeout(() => { if (msgEl.classList.contains('show')) { msgEl.classList.remove('show'); msgEl.className = 'msg'; msgEl.textContent = ''; } }, 5000); }
+    showMsg('attendMsg', 'success', result.message);
     if (btn) { btn.disabled = true; btn.dataset.done = '1'; }
     setTimeout(() => loadTodayStatus(), 1500);
   } else {
-    if (msgEl) { msgEl.className = 'msg error show'; msgEl.textContent = result.message; setTimeout(() => { if (msgEl.classList.contains('show')) { msgEl.classList.remove('show'); msgEl.className = 'msg'; msgEl.textContent = ''; } }, 5000); }
+    showMsg('attendMsg', 'error', result.message);
   }
 }
 
-// ==================== CHECK OUT ====================
+// ============================================================
+// CHECK OUT
+// ============================================================
 async function handleCheckOut() {
   if (isSubmitting) return;
+
   if (!capturedPhoto) {
-    const msgEl = document.getElementById('attendMsg');
-    if (msgEl) { msgEl.className = 'msg error show'; msgEl.textContent = 'Ambil foto selfie terlebih dahulu'; setTimeout(() => { if (msgEl.classList.contains('show')) { msgEl.classList.remove('show'); msgEl.className = 'msg'; msgEl.textContent = ''; } }, 5000); }
+    showMsg('attendMsg', 'error', 'Ambil foto selfie terlebih dahulu');
     return;
   }
   if (!currentLocation) {
-    const msgEl = document.getElementById('attendMsg');
-    if (msgEl) { msgEl.className = 'msg error show'; msgEl.textContent = 'Dapatkan lokasi Anda terlebih dahulu'; setTimeout(() => { if (msgEl.classList.contains('show')) { msgEl.classList.remove('show'); msgEl.className = 'msg'; msgEl.textContent = ''; } }, 5000); }
+    showMsg('attendMsg', 'error', 'Dapatkan lokasi Anda terlebih dahulu');
     return;
   }
 
   isSubmitting = true;
   const btn = document.getElementById('checkOutBtn');
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Memproses...'; }
-  const msgEl = document.getElementById('attendMsg');
-  if (msgEl) { msgEl.className = 'msg loading show'; msgEl.textContent = 'Mengirim data absen pulang...'; }
+  showMsg('attendMsg', 'loading', 'Mengirim data absen pulang...');
 
   const result = await apiCallPost({
     action: 'checkOut',
@@ -938,38 +847,45 @@ async function handleCheckOut() {
   if (btn) { btn.disabled = false; btn.textContent = '🔚 Absen Pulang'; }
 
   if (result.status === 'success') {
-    if (msgEl) { msgEl.className = 'msg success show'; msgEl.textContent = result.message; setTimeout(() => { if (msgEl.classList.contains('show')) { msgEl.classList.remove('show'); msgEl.className = 'msg'; msgEl.textContent = ''; } }, 5000); }
+    showMsg('attendMsg', 'success', result.message);
     if (btn) { btn.disabled = true; btn.dataset.done = '1'; }
     setTimeout(() => loadTodayStatus(), 1500);
   } else {
-    if (msgEl) { msgEl.className = 'msg error show'; msgEl.textContent = result.message; setTimeout(() => { if (msgEl.classList.contains('show')) { msgEl.classList.remove('show'); msgEl.className = 'msg'; msgEl.textContent = ''; } }, 5000); }
+    showMsg('attendMsg', 'error', result.message);
   }
 }
 
-// ==================== HISTORY ====================
+// ============================================================
+// HISTORY
+// ============================================================
 async function loadHistory() {
   const month = document.getElementById('histMonth')?.value;
   const year = document.getElementById('histYear')?.value;
   if (!month || !year || !currentUser) return;
 
   const tbody = document.getElementById('histBody');
-  if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Memuat...</td></tr>';
+  if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="empty-state">⏳ Memuat...</td></tr>';
 
-  const r = await apiCall({ action: 'getAttendanceHistory', email: currentUser.email, month, year });
+  const r = await apiCall({
+    action: 'getAttendanceHistory',
+    email: currentUser.email,
+    month,
+    year
+  });
+
   if (!tbody) return;
 
   if (r.status === 'success' && r.data && r.data.length > 0) {
-    tbody.innerHTML = r.data.map(row =>
-      '<tr>' +
-      '<td>' + formatDate(row.tanggal) + '</td>' +
-      '<td>' + (row.checkIn || '-') + '</td>' +
-      '<td>' + (row.checkOut || '-') + '</td>' +
-      '<td>' + (row.lokasi || '-') + '</td>' +
-      '<td><span class="badge badge-success">' + (row.status || 'Hadir') + '</span></td>' +
-      '</tr>'
-    ).join('');
+    tbody.innerHTML = r.data.map(row => `
+      <tr>
+        <td>${formatDate(row.tanggal)}</td>
+        <td>${row.checkIn || '-'}</td>
+        <td>${row.checkOut || '-'}</td>
+        <td>${row.lokasi || '-'}</td>
+        <td><span class="badge badge-success">${row.status || 'Hadir'}</span></td>
+      </tr>`).join('');
   } else {
-    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Tidak ada data untuk periode ini</td>';
+    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Tidak ada data untuk periode ini</td></tr>';
   }
 
   if (r.status === 'success' && r.data) {
@@ -982,47 +898,57 @@ async function loadHistory() {
   }
 }
 
-// ==================== DASHBOARD STATS ====================
+// ============================================================
+// DASHBOARD STATS
+// ============================================================
 async function loadDashboardStats() {
   const r = await apiCall({ action: 'getAllUsers' });
   if (r.status === 'success' && r.data) {
     const guru = r.data.filter(u => u.role === 'guru').length;
     const kepsek = r.data.filter(u => u.role === 'kepsek').length;
     const admin = r.data.filter(u => u.role === 'admin').length;
-    const g = document.getElementById('statGuru');
-    const k = document.getElementById('statKepsek');
-    const a = document.getElementById('statAdmin');
-    if (g) g.textContent = guru;
-    if (k) k.textContent = kepsek;
-    if (a) a.textContent = admin;
+    const gEl = document.getElementById('statGuru');
+    const kEl = document.getElementById('statKepsek');
+    const aEl = document.getElementById('statAdmin');
+    if (gEl) gEl.textContent = guru;
+    if (kEl) kEl.textContent = kepsek;
+    if (aEl) aEl.textContent = admin;
   }
 
-  if (currentUser && currentUser.role === 'guru') {
-    const now = getPapuaTime();
-    const r2 = await apiCall({ action: 'getAttendanceHistory', email: currentUser.email, month: now.getMonth() + 1, year: now.getFullYear() });
+  if (currentUser?.role === 'guru') {
+    const d = getWITDate();
+    const r2 = await apiCall({
+      action: 'getAttendanceHistory',
+      email: currentUser.email,
+      month: d.getMonth() + 1,
+      year: d.getFullYear()
+    });
     if (r2.status === 'success' && r2.data) {
       const total = r2.data.length;
       const persen = Math.round((total / 22) * 100);
-      const t = document.getElementById('statHadir');
-      const p = document.getElementById('statPersen');
-      if (t) t.textContent = total;
-      if (p) p.textContent = persen + '%';
+      const tEl = document.getElementById('statHadir');
+      const pEl = document.getElementById('statPersen');
+      if (tEl) tEl.textContent = total;
+      if (pEl) pEl.textContent = persen + '%';
     }
   }
 }
 
-// ==================== TEACHERS ====================
+// ============================================================
+// TEACHERS LIST
+// ============================================================
 async function loadAllTeachers() {
   const tbody = document.getElementById('teachersBody');
-  if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Memuat data...<tr>';
+  if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="empty-state">⏳ Memuat data...</td></tr>';
 
   const searchVal = document.getElementById('searchTeacher')?.value?.toLowerCase() || '';
   const roleFilter = document.getElementById('filterRole')?.value || 'all';
   const r = await apiCall({ action: 'getAllUsers' });
 
   if (!tbody) return;
+
   if (r.status !== 'success' || !r.data || !r.data.length) {
-    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Belum ada data pengguna</td>';
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Belum ada data pengguna</td></tr>';
     return;
   }
 
@@ -1031,112 +957,119 @@ async function loadAllTeachers() {
   if (roleFilter !== 'all') data = data.filter(u => u.role === roleFilter);
 
   const isAdmin = currentUser?.role === 'admin';
-  tbody.innerHTML = data.map((u, i) =>
-    '<tr>' +
-    '<td>' + (i + 1) + '</td>' +
-    '<td><strong>' + (u.nama || '-') + '</strong></td>' +
-    '<td style="color:var(--text2)">' + (u.email || '-') + '</td>' +
-    '<td><span class="badge badge-info">' + (u.role === 'guru' ? 'Guru' : u.role === 'kepsek' ? 'Kepsek' : 'Admin') + '</span></td>' +
-    '<td>' + (u.status === 'Verified' ? '<span class="badge badge-success">Aktif</span>' : u.status === 'Pending' ? '<span class="badge badge-warning">Pending</span>' : '<span class="badge badge-error">Diblokir</span>') + '</td>' +
-    '<td><div class="td-actions">' +
-    '<button class="btn-secondary btn-sm" onclick="viewTeacherAttendance(\'' + u.email + '\')">📋 Absensi</button>' +
-    (isAdmin ? '<button class="btn-secondary btn-sm" onclick="editTeacher(\'' + u.email + '\')">✏️ Edit</button>' : '') +
-    (isAdmin ? '<button class="' + (u.status === 'Blocked' ? 'btn-success' : 'btn-danger') + ' btn-sm" onclick="confirmToggleBlock(\'' + u.email + '\',\'' + u.status + '\')">' + (u.status === 'Blocked' ? '🔓 Aktifkan' : '🔒 Blokir') + '</button>' : '') +
-    '</div></td>' +
-    '</tr>'
-  ).join('');
+
+  tbody.innerHTML = data.map((u, i) => {
+    const roleBadge = u.role === 'guru' ? 'Guru' : u.role === 'kepsek' ? 'Kepsek' : 'Admin';
+    const statusBadge = u.status === 'Verified'
+      ? '<span class="badge badge-success">Aktif</span>'
+      : u.status === 'Pending'
+        ? '<span class="badge badge-warning">Pending</span>'
+        : '<span class="badge badge-error">Diblokir</span>';
+
+    const adminActions = isAdmin ? `
+      <button class="btn-secondary btn-sm" onclick="editTeacher('${u.email}')">✏️ Edit</button>
+      <button class="${u.status === 'Blocked' ? 'btn-success' : 'btn-danger'} btn-sm"
+        onclick="confirmToggleBlock('${u.email}','${u.status}')">
+        ${u.status === 'Blocked' ? '🔓 Aktifkan' : '🔒 Blokir'}
+      </button>` : '';
+
+    return `<tr>
+      <td>${i + 1}</td>
+      <td><strong>${u.nama || '-'}</strong></td>
+      <td style="color:var(--text2)">${u.email || '-'}</td>
+      <td><span class="badge badge-info">${roleBadge}</span></td>
+      <td>${statusBadge}</td>
+      <td><div class="td-actions">
+        <button class="btn-secondary btn-sm" onclick="viewTeacherAttendance('${u.email}')">📋 Absensi</button>
+        ${adminActions}
+      </div></td>
+    </tr>`;
+  }).join('');
 }
 
-// ==================== CONFIRM TOGGLE BLOCK ====================
+// ============================================================
+// CONFIRM TOGGLE BLOCK
+// ============================================================
 window.confirmToggleBlock = function (email, currentStatus) {
   const isBlocked = currentStatus === 'Blocked';
   const actionText = isBlocked ? 'mengaktifkan' : 'memblokir';
-  const title = isBlocked ? 'Aktifkan User' : 'Blokir User';
-  const message = `Apakah Anda yakin ingin ${actionText} user dengan email: ${email}?`;
-
-  showConfirmModal(title, message, async function () {
-    const blocked = !isBlocked;
-    const r = await apiCall({ action: 'blockUser', email, blocked: blocked ? 'true' : 'false' });
-    if (r.status === 'success') {
-      const msgEl = document.getElementById('setMsg');
-      if (msgEl) {
-        msgEl.className = 'msg success show';
-        msgEl.textContent = r.message;
-        setTimeout(() => {
-          if (msgEl.classList.contains('show')) {
-            msgEl.classList.remove('show');
-            msgEl.className = 'msg';
-            msgEl.textContent = '';
-          }
-        }, 5000);
-      }
-      loadAllTeachers();
-    } else {
-      const msgEl = document.getElementById('setMsg');
-      if (msgEl) {
-        msgEl.className = 'msg error show';
-        msgEl.textContent = r.message;
-        setTimeout(() => {
-          if (msgEl.classList.contains('show')) {
-            msgEl.classList.remove('show');
-            msgEl.className = 'msg';
-            msgEl.textContent = '';
-          }
-        }, 5000);
-      }
+  showConfirmModal(
+    isBlocked ? 'Aktifkan User' : 'Blokir User',
+    `Apakah Anda yakin ingin ${actionText} user: ${email}?`,
+    async function () {
+      const r = await apiCall({ action: 'blockUser', email, blocked: isBlocked ? 'false' : 'true' });
+      showMsg('setMsg', r.status === 'success' ? 'success' : 'error', r.message);
+      if (r.status === 'success') loadAllTeachers();
     }
-  });
+  );
 };
 
+// ============================================================
+// VIEW TEACHER ATTENDANCE
+// ============================================================
 window.viewTeacherAttendance = async function (email) {
-  const now = getPapuaTime();
-  const r = await apiCall({ action: 'getAttendanceHistory', email, month: now.getMonth() + 1, year: now.getFullYear() });
-  const detBox = document.getElementById('teacherDetail');
-  const detContent = document.getElementById('teacherDetailContent');
-  if (!detBox || !detContent) return;
+  const d = getWITDate();
+  const r = await apiCall({ action: 'getAttendanceHistory', email, month: d.getMonth() + 1, year: d.getFullYear() });
+  const box = document.getElementById('teacherDetail');
+  const cnt = document.getElementById('teacherDetailContent');
+  if (!box || !cnt) return;
 
-  detBox.style.display = 'block';
-  document.getElementById('teacherDetailEmail').textContent = email;
+  box.style.display = 'block';
+  const emailEl = document.getElementById('teacherDetailEmail');
+  if (emailEl) emailEl.textContent = email;
 
   if (r.status === 'success' && r.data && r.data.length > 0) {
-    detContent.innerHTML = '<div class="table-wrap"><table class="data-table"><thead><tr><th>Tanggal</th><th>Check In</th><th>Check Out</th><th>Lokasi</th></tr></thead><tbody>' +
-      r.data.map(d => '<tr><td>' + formatDate(d.tanggal) + '</td><td>' + (d.checkIn || '-') + '</td><td>' + (d.checkOut || '-') + '</td><td>' + (d.lokasi || '-') + '</td></tr>').join('') +
-      '</tbody></table></div>';
+    cnt.innerHTML = `<div class="table-wrap"><table class="data-table">
+      <thead><tr><th>Tanggal</th><th>Check In</th><th>Check Out</th><th>Lokasi</th></tr></thead>
+      <tbody>${r.data.map(d => `<tr>
+        <td>${formatDate(d.tanggal)}</td>
+        <td>${d.checkIn || '-'}</td>
+        <td>${d.checkOut || '-'}</td>
+        <td>${d.lokasi || '-'}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
   } else {
-    detContent.innerHTML = '<div class="empty-state"><span class="icon">📭</span>Belum ada data absensi bulan ini</div>';
+    cnt.innerHTML = '<div class="empty-state"><span class="icon">📭</span> Belum ada data absensi bulan ini</div>';
   }
 };
 
+// ============================================================
+// EDIT TEACHER
+// ============================================================
 window.editTeacher = async function (email) {
   const r = await apiCall({ action: 'getUserByEmail', email });
   if (r.status !== 'success') { alert('Gagal memuat data user'); return; }
+
   const u = r.data;
-  document.getElementById('editEmailHidden').value = email;
-  document.getElementById('editNama').value = u.nama || '';
-  document.getElementById('editEmailDisplay').value = u.email || '';
-  document.getElementById('editRole').value = u.role || 'guru';
-  document.getElementById('editStatus').value = u.status === 'Verified' ? 'Verified' : 'Blocked';
-  document.getElementById('editPassword').value = '';
-  document.getElementById('editModalTitle').textContent = 'Edit Data: ' + u.nama;
+  const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+  setVal('editEmailHidden', email);
+  setVal('editNama', u.nama);
+  setVal('editEmailDisplay', u.email);
+  setVal('editRole', u.role);
+  setVal('editStatus', u.status === 'Verified' ? 'Verified' : 'Blocked');
+  setVal('editPassword', '');
+
+  const titleEl = document.getElementById('editModalTitle');
+  if (titleEl) titleEl.textContent = 'Edit Data: ' + u.nama;
   openModal('editTeacherModal');
 };
 
 async function saveEditTeacher() {
   if (isSubmitting) return;
-  const email = document.getElementById('editEmailHidden').value;
-  const newRole = document.getElementById('editRole').value;
-  const newStatus = document.getElementById('editStatus').value;
-  const newPassword = document.getElementById('editPassword').value;
+  const email = document.getElementById('editEmailHidden')?.value;
+  const newRole = document.getElementById('editRole')?.value;
+  const newStatus = document.getElementById('editStatus')?.value;
+  const newPassword = document.getElementById('editPassword')?.value;
 
   isSubmitting = true;
   setBtn('saveEditBtn', true, 'Simpan');
-  const msgEl = document.getElementById('editMsg');
-  if (msgEl) { msgEl.className = 'msg loading show'; msgEl.textContent = 'Menyimpan perubahan...'; }
+  showMsg('editMsg', 'loading', 'Menyimpan perubahan...');
 
   const r1 = await apiCall({ action: 'updateUserRole', email, newRole });
   if (r1.status !== 'success') {
-    if (msgEl) { msgEl.className = 'msg error show'; msgEl.textContent = r1.message; setTimeout(() => { if (msgEl.classList.contains('show')) { msgEl.classList.remove('show'); msgEl.className = 'msg'; msgEl.textContent = ''; } }, 5000); }
-    isSubmitting = false; setBtn('saveEditBtn', false, 'Simpan');
+    showMsg('editMsg', 'error', r1.message);
+    isSubmitting = false;
+    setBtn('saveEditBtn', false, 'Simpan');
     return;
   }
 
@@ -1146,362 +1079,410 @@ async function saveEditTeacher() {
     await apiCall({ action: 'resetPassword', email, newPassword });
   }
 
-  isSubmitting = false; setBtn('saveEditBtn', false, 'Simpan');
-  if (msgEl) { msgEl.className = 'msg success show'; msgEl.textContent = 'Data berhasil disimpan'; setTimeout(() => { if (msgEl.classList.contains('show')) { msgEl.classList.remove('show'); msgEl.className = 'msg'; msgEl.textContent = ''; } }, 5000); }
+  isSubmitting = false;
+  setBtn('saveEditBtn', false, 'Simpan');
+  showMsg('editMsg', 'success', 'Data berhasil disimpan');
   setTimeout(() => { closeModal('editTeacherModal'); loadAllTeachers(); }, 1200);
 }
 
 function openAddTeacher() {
-  document.getElementById('addNama').value = '';
-  document.getElementById('addEmail').value = '';
-  document.getElementById('addPassword').value = '';
-  document.getElementById('addRole').value = 'guru';
-  const msgEl = document.getElementById('addMsg');
-  if (msgEl) { msgEl.className = 'msg'; msgEl.textContent = ''; }
+  ['addNama', 'addEmail', 'addPassword'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  const roleEl = document.getElementById('addRole');
+  if (roleEl) roleEl.value = 'guru';
+  const msg = document.getElementById('addMsg');
+  if (msg) { msg.className = 'msg'; msg.textContent = ''; }
   openModal('addTeacherModal');
 }
 
 async function saveAddTeacher() {
   if (isSubmitting) return;
-  const nama = document.getElementById('addNama').value.trim();
-  const email = document.getElementById('addEmail').value.trim();
-  const password = document.getElementById('addPassword').value;
-  const role = document.getElementById('addRole').value;
+  const nama = document.getElementById('addNama')?.value?.trim();
+  const email = document.getElementById('addEmail')?.value?.trim();
+  const password = document.getElementById('addPassword')?.value;
+  const role = document.getElementById('addRole')?.value;
 
   if (!nama || !email || !password) {
-    const msgEl = document.getElementById('addMsg');
-    if (msgEl) { msgEl.className = 'msg error show'; msgEl.textContent = 'Semua field wajib diisi'; setTimeout(() => { if (msgEl.classList.contains('show')) { msgEl.classList.remove('show'); msgEl.className = 'msg'; msgEl.textContent = ''; } }, 5000); }
+    showMsg('addMsg', 'error', 'Semua field wajib diisi');
     return;
   }
   if (password.length < 6) {
-    const msgEl = document.getElementById('addMsg');
-    if (msgEl) { msgEl.className = 'msg error show'; msgEl.textContent = 'Password minimal 6 karakter'; setTimeout(() => { if (msgEl.classList.contains('show')) { msgEl.classList.remove('show'); msgEl.className = 'msg'; msgEl.textContent = ''; } }, 5000); }
+    showMsg('addMsg', 'error', 'Password minimal 6 karakter');
     return;
   }
 
   isSubmitting = true;
   setBtn('saveAddBtn', true, 'Tambah');
-  const msgEl = document.getElementById('addMsg');
-  if (msgEl) { msgEl.className = 'msg loading show'; msgEl.textContent = 'Mendaftarkan...'; }
+  showMsg('addMsg', 'loading', 'Mendaftarkan...');
 
   const r = await apiCall({ action: 'signup', nama, email, password, role });
-  isSubmitting = false; setBtn('saveAddBtn', false, 'Tambah');
+  isSubmitting = false;
+  setBtn('saveAddBtn', false, 'Tambah');
 
   if (r.status === 'success') {
-    if (msgEl) { msgEl.className = 'msg success show'; msgEl.textContent = r.message; setTimeout(() => { if (msgEl.classList.contains('show')) { msgEl.classList.remove('show'); msgEl.className = 'msg'; msgEl.textContent = ''; } }, 5000); }
+    showMsg('addMsg', 'success', r.message);
     setTimeout(() => { closeModal('addTeacherModal'); loadAllTeachers(); }, 1500);
   } else {
-    if (msgEl) { msgEl.className = 'msg error show'; msgEl.textContent = r.message; setTimeout(() => { if (msgEl.classList.contains('show')) { msgEl.classList.remove('show'); msgEl.className = 'msg'; msgEl.textContent = ''; } }, 5000); }
+    showMsg('addMsg', 'error', r.message);
   }
 }
 
-// ==================== LOCATIONS ====================
+// ============================================================
+// LOCATIONS
+// ============================================================
 async function loadLocations() {
   const tbody = document.getElementById('locationsBody');
-  if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Memuat...</td>';
+  if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="empty-state">⏳ Memuat...</td></tr>';
 
   const r = await apiCall({ action: 'getLocations' });
   if (!tbody) return;
+
   if (r.status === 'success' && r.data && r.data.length > 0) {
-    tbody.innerHTML = r.data.map(loc =>
-      '<tr>' +
-      '<td><strong>' + loc.nama_kelas + '</strong></td>' +
-      '<td>' + loc.lat + '</td>' +
-      '<td>' + loc.lng + '</td>' +
-      '<td><span class="badge badge-info">' + loc.radius_meter + ' m</span></td>' +
-      '<td><button class="btn-danger btn-sm" onclick="alert(\'Hapus lokasi: ' + loc.nama_kelas + ' (implementasi nanti)\')">🗑️ Hapus</button></td>' +
-      '</tr>'
-    ).join('');
+    tbody.innerHTML = r.data.map(loc => `
+      <tr>
+        <td><strong>${loc.nama_kelas}</strong></td>
+        <td>${loc.lat}</td>
+        <td>${loc.lng}</td>
+        <td><span class="badge badge-info">${loc.radius_meter} m</span></td>
+        <td><span class="badge badge-success">Aktif</span></td>
+      </tr>`).join('');
   } else {
-    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Belum ada lokasi terdaftar</td>';
+    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Belum ada lokasi terdaftar</td></tr>';
   }
 }
 
 async function addLocation() {
   if (isSubmitting) return;
-  const nama = document.getElementById('locNama').value.trim();
-  const lat = document.getElementById('locLat').value.trim();
-  const lng = document.getElementById('locLng').value.trim();
-  const radius = document.getElementById('locRadius').value || 50;
+  const nama = document.getElementById('locNama')?.value?.trim();
+  const lat = document.getElementById('locLat')?.value?.trim();
+  const lng = document.getElementById('locLng')?.value?.trim();
+  const radius = document.getElementById('locRadius')?.value || 50;
 
   if (!nama || !lat || !lng) {
-    const msgEl = document.getElementById('locMsg');
-    if (msgEl) { msgEl.className = 'msg error show'; msgEl.textContent = 'Nama, Latitude, Longitude wajib diisi'; setTimeout(() => { if (msgEl.classList.contains('show')) { msgEl.classList.remove('show'); msgEl.className = 'msg'; msgEl.textContent = ''; } }, 5000); }
+    showMsg('locMsg', 'error', 'Nama, Latitude, Longitude wajib diisi');
     return;
   }
 
   isSubmitting = true;
   setBtn('addLocBtn', true, 'Tambah Lokasi');
-  const msgEl = document.getElementById('locMsg');
-  if (msgEl) { msgEl.className = 'msg loading show'; msgEl.textContent = 'Menyimpan...'; }
+  showMsg('locMsg', 'loading', 'Menyimpan...');
 
   const r = await apiCall({ action: 'addLocation', nama_kelas: nama, lat, lng, radius });
-  isSubmitting = false; setBtn('addLocBtn', false, 'Tambah Lokasi');
+  isSubmitting = false;
+  setBtn('addLocBtn', false, 'Tambah Lokasi');
 
   if (r.status === 'success') {
-    if (msgEl) { msgEl.className = 'msg success show'; msgEl.textContent = r.message; setTimeout(() => { if (msgEl.classList.contains('show')) { msgEl.classList.remove('show'); msgEl.className = 'msg'; msgEl.textContent = ''; } }, 5000); }
-    document.getElementById('locNama').value = '';
-    document.getElementById('locLat').value = '';
-    document.getElementById('locLng').value = '';
-    document.getElementById('locRadius').value = '50';
+    showMsg('locMsg', 'success', r.message);
+    ['locNama', 'locLat', 'locLng'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    const locRadius = document.getElementById('locRadius');
+    if (locRadius) locRadius.value = '50';
     loadLocations();
   } else {
-    if (msgEl) { msgEl.className = 'msg error show'; msgEl.textContent = r.message; setTimeout(() => { if (msgEl.classList.contains('show')) { msgEl.classList.remove('show'); msgEl.className = 'msg'; msgEl.textContent = ''; } }, 5000); }
+    showMsg('locMsg', 'error', r.message);
   }
 }
 
-// ==================== SETTINGS ====================
+// ============================================================
+// SETTINGS — Load
+// ============================================================
 async function loadSettings() {
   const r = await apiCall({ action: 'getSettings' });
-  if (r.status !== 'success') return;
+  if (r.status !== 'success') {
+    showMsg('setMsg', 'error', 'Gagal memuat pengaturan');
+    return;
+  }
+
   const s = r.data;
 
-  const setVal = function (key, defaultValue) {
-    return formatTimeFromBackend(s[key]?.value) || defaultValue;
-  };
+  const fields = [
+    ['set_senin_rabu_masuk_mulai', 'senin_rabu_masuk_mulai', '07:00'],
+    ['set_senin_rabu_masuk_selesai', 'senin_rabu_masuk_selesai', '08:30'],
+    ['set_senin_rabu_pulang_mulai', 'senin_rabu_pulang_mulai', '12:00'],
+    ['set_senin_rabu_pulang_selesai', 'senin_rabu_pulang_selesai', '12:15'],
+    ['set_kamis_jumat_masuk_mulai', 'kamis_jumat_masuk_mulai', '07:00'],
+    ['set_kamis_jumat_masuk_selesai', 'kamis_jumat_masuk_selesai', '08:30'],
+    ['set_kamis_jumat_pulang_mulai', 'kamis_jumat_pulang_mulai', '11:45'],
+    ['set_kamis_jumat_pulang_selesai', 'kamis_jumat_pulang_selesai', '12:00'],
+  ];
 
-  const setSeninRabuMasukMulai = document.getElementById('set_senin_rabu_masuk_mulai');
-  const setSeninRabuMasukSelesai = document.getElementById('set_senin_rabu_masuk_selesai');
-  const setSeninRabuPulangMulai = document.getElementById('set_senin_rabu_pulang_mulai');
-  const setSeninRabuPulangSelesai = document.getElementById('set_senin_rabu_pulang_selesai');
-  const setKamisJumatMasukMulai = document.getElementById('set_kamis_jumat_masuk_mulai');
-  const setKamisJumatMasukSelesai = document.getElementById('set_kamis_jumat_masuk_selesai');
-  const setKamisJumatPulangMulai = document.getElementById('set_kamis_jumat_pulang_mulai');
-  const setKamisJumatPulangSelesai = document.getElementById('set_kamis_jumat_pulang_selesai');
-  const setSchoolName = document.getElementById('set_school_name');
+  fields.forEach(([elId, key, def]) => {
+    const el = document.getElementById(elId);
+    if (el) el.value = formatTimeFromBackend(s[key]?.value) || def;
+  });
 
-  if (setSeninRabuMasukMulai) setSeninRabuMasukMulai.value = setVal('senin_rabu_masuk_mulai', '07:00');
-  if (setSeninRabuMasukSelesai) setSeninRabuMasukSelesai.value = setVal('senin_rabu_masuk_selesai', '08:30');
-  if (setSeninRabuPulangMulai) setSeninRabuPulangMulai.value = setVal('senin_rabu_pulang_mulai', '12:00');
-  if (setSeninRabuPulangSelesai) setSeninRabuPulangSelesai.value = setVal('senin_rabu_pulang_selesai', '12:15');
-  if (setKamisJumatMasukMulai) setKamisJumatMasukMulai.value = setVal('kamis_jumat_masuk_mulai', '07:00');
-  if (setKamisJumatMasukSelesai) setKamisJumatMasukSelesai.value = setVal('kamis_jumat_masuk_selesai', '08:30');
-  if (setKamisJumatPulangMulai) setKamisJumatPulangMulai.value = setVal('kamis_jumat_pulang_mulai', '12:00');
-  if (setKamisJumatPulangSelesai) setKamisJumatPulangSelesai.value = setVal('kamis_jumat_pulang_selesai', '12:00');
-  if (setSchoolName) setSchoolName.value = s.school_name?.value || '';
+  const schoolEl = document.getElementById('set_school_name');
+  if (schoolEl) schoolEl.value = s.school_name?.value || '';
 }
 
+// ============================================================
+// SETTINGS — Save (FIX: pakai apiCallPost)
+// ============================================================
 async function saveSettings() {
   if (isSubmitting) return;
-  const settings = {};
 
-  const getVal = function (id) {
-    const el = document.getElementById(id);
-    return el ? el.value : '';
+  const getVal = (id) => document.getElementById(id)?.value || '';
+
+  const settings = {
+    senin_rabu_masuk_mulai: getVal('set_senin_rabu_masuk_mulai'),
+    senin_rabu_masuk_selesai: getVal('set_senin_rabu_masuk_selesai'),
+    senin_rabu_pulang_mulai: getVal('set_senin_rabu_pulang_mulai'),
+    senin_rabu_pulang_selesai: getVal('set_senin_rabu_pulang_selesai'),
+    kamis_jumat_masuk_mulai: getVal('set_kamis_jumat_masuk_mulai'),
+    kamis_jumat_masuk_selesai: getVal('set_kamis_jumat_masuk_selesai'),
+    kamis_jumat_pulang_mulai: getVal('set_kamis_jumat_pulang_mulai'),
+    kamis_jumat_pulang_selesai: getVal('set_kamis_jumat_pulang_selesai'),
+    school_name: getVal('set_school_name')
   };
 
-  settings.senin_rabu_masuk_mulai = getVal('set_senin_rabu_masuk_mulai');
-  settings.senin_rabu_masuk_selesai = getVal('set_senin_rabu_masuk_selesai');
-  settings.senin_rabu_pulang_mulai = getVal('set_senin_rabu_pulang_mulai');
-  settings.senin_rabu_pulang_selesai = getVal('set_senin_rabu_pulang_selesai');
-  settings.kamis_jumat_masuk_mulai = getVal('set_kamis_jumat_masuk_mulai');
-  settings.kamis_jumat_masuk_selesai = getVal('set_kamis_jumat_masuk_selesai');
-  settings.kamis_jumat_pulang_mulai = getVal('set_kamis_jumat_pulang_mulai');
-  settings.kamis_jumat_pulang_selesai = getVal('set_kamis_jumat_pulang_selesai');
-  settings.school_name = getVal('set_school_name');
+  // Validasi: semua field waktu harus terisi
+  const timeKeys = Object.keys(settings).filter(k => k !== 'school_name');
+  for (const key of timeKeys) {
+    if (!settings[key]) {
+      showMsg('setMsg', 'error', 'Semua field jadwal wajib diisi');
+      return;
+    }
+  }
 
   isSubmitting = true;
   setBtn('saveSetBtn', true, 'Simpan Pengaturan');
-  const msgEl = document.getElementById('setMsg');
-  if (msgEl) { msgEl.className = 'msg loading show'; msgEl.textContent = 'Menyimpan...'; }
+  showMsg('setMsg', 'loading', 'Menyimpan pengaturan...');
 
-  const r = await apiCall({ action: 'updateSettings', settings: JSON.stringify(settings) });
-  isSubmitting = false; setBtn('saveSetBtn', false, 'Simpan Pengaturan');
+  // POST — agar tidak terkena limit URL panjang dan agar updateSettings bisa diproses
+  const r = await apiCallPost({ action: 'updateSettings', settings });
+
+  isSubmitting = false;
+  setBtn('saveSetBtn', false, 'Simpan Pengaturan');
 
   if (r.status === 'success') {
-    if (msgEl) { msgEl.className = 'msg success show'; msgEl.textContent = 'Pengaturan berhasil disimpan'; setTimeout(() => { if (msgEl.classList.contains('show')) { msgEl.classList.remove('show'); msgEl.className = 'msg'; msgEl.textContent = ''; } }, 5000); }
-    loadAdminScheduleInfo();
-    loadKepsekScheduleInfo();
-    loadScheduleInfo();
+    showMsg('setMsg', 'success', '✅ Pengaturan berhasil disimpan');
+    // Reload jadwal di semua elemen yang ada
+    loadScheduleInfo('adminScheduleInfo');
+    loadScheduleInfo('kepsekScheduleInfo');
+    loadScheduleInfo('scheduleInfo');
+    // Update nama sekolah
+    loadSchoolName();
   } else {
-    if (msgEl) { msgEl.className = 'msg error show'; msgEl.textContent = r.message || 'Gagal menyimpan'; setTimeout(() => { if (msgEl.classList.contains('show')) { msgEl.classList.remove('show'); msgEl.className = 'msg'; msgEl.textContent = ''; } }, 5000); }
+    showMsg('setMsg', 'error', r.message || 'Gagal menyimpan pengaturan');
   }
 }
 
-// ==================== REPORT ====================
+// ============================================================
+// REPORT
+// ============================================================
 async function generateReport() {
   if (isSubmitting) return;
   const month = document.getElementById('repMonth')?.value;
   const year = document.getElementById('repYear')?.value;
   const email = document.getElementById('repEmail')?.value?.trim() || currentUser?.email;
+
   if (!month || !year || !email) {
-    const msgEl = document.getElementById('repMsg');
-    if (msgEl) { msgEl.className = 'msg error show'; msgEl.textContent = 'Lengkapi semua field'; setTimeout(() => { if (msgEl.classList.contains('show')) { msgEl.classList.remove('show'); msgEl.className = 'msg'; msgEl.textContent = ''; } }, 5000); }
+    showMsg('repMsg', 'error', 'Lengkapi semua field laporan');
     return;
   }
 
   isSubmitting = true;
   setBtn('genRepBtn', true, 'Generate Laporan');
-  const msgEl = document.getElementById('repMsg');
-  if (msgEl) { msgEl.className = 'msg loading show'; msgEl.textContent = 'Mengirim laporan...'; }
+  showMsg('repMsg', 'loading', 'Mengirim laporan...');
 
   const r = await apiCall({ action: 'generateMonthlyReport', month, year, sendToEmail: email });
-  isSubmitting = false; setBtn('genRepBtn', false, 'Generate Laporan');
-  if (msgEl) { msgEl.className = 'msg ' + (r.status === 'success' ? 'success' : 'error') + ' show'; msgEl.textContent = r.message; setTimeout(() => { if (msgEl.classList.contains('show')) { msgEl.classList.remove('show'); msgEl.className = 'msg'; msgEl.textContent = ''; } }, 5000); }
+  isSubmitting = false;
+  setBtn('genRepBtn', false, 'Generate Laporan');
+  showMsg('repMsg', r.status === 'success' ? 'success' : 'error', r.message);
 }
 
-// ==================== CHANGE PASSWORD ====================
+// ============================================================
+// CHANGE PASSWORD
+// ============================================================
 async function changePassword() {
   if (isSubmitting) return;
   const pwd1 = document.getElementById('newPwd1')?.value;
   const pwd2 = document.getElementById('newPwd2')?.value;
-  if (!pwd1 || pwd1.length < 6) {
-    const msgEl = document.getElementById('changePwMsg');
-    if (msgEl) { msgEl.className = 'msg error show'; msgEl.textContent = 'Password minimal 6 karakter'; setTimeout(() => { if (msgEl.classList.contains('show')) { msgEl.classList.remove('show'); msgEl.className = 'msg'; msgEl.textContent = ''; } }, 5000); }
-    return;
-  }
-  if (pwd1 !== pwd2) {
-    const msgEl = document.getElementById('changePwMsg');
-    if (msgEl) { msgEl.className = 'msg error show'; msgEl.textContent = 'Password tidak cocok'; setTimeout(() => { if (msgEl.classList.contains('show')) { msgEl.classList.remove('show'); msgEl.className = 'msg'; msgEl.textContent = ''; } }, 5000); }
-    return;
-  }
+
+  if (!pwd1 || pwd1.length < 6) { showMsg('changePwMsg', 'error', 'Password minimal 6 karakter'); return; }
+  if (pwd1 !== pwd2) { showMsg('changePwMsg', 'error', 'Password tidak cocok'); return; }
 
   isSubmitting = true;
   setBtn('changePwBtn', true, 'Simpan');
-  const msgEl = document.getElementById('changePwMsg');
-  if (msgEl) { msgEl.className = 'msg loading show'; msgEl.textContent = 'Menyimpan...'; }
+  showMsg('changePwMsg', 'loading', 'Menyimpan...');
 
   const r = await apiCall({ action: 'resetPassword', email: currentUser.email, newPassword: pwd1 });
-  isSubmitting = false; setBtn('changePwBtn', false, 'Simpan');
+  isSubmitting = false;
+  setBtn('changePwBtn', false, 'Simpan');
 
   if (r.status === 'success') {
-    if (msgEl) { msgEl.className = 'msg success show'; msgEl.textContent = 'Password berhasil diganti!'; setTimeout(() => { if (msgEl.classList.contains('show')) { msgEl.classList.remove('show'); msgEl.className = 'msg'; msgEl.textContent = ''; } }, 5000); }
-    setTimeout(() => { closeModal('changePwModal'); document.getElementById('newPwd1').value = ''; document.getElementById('newPwd2').value = ''; }, 1800);
+    showMsg('changePwMsg', 'success', 'Password berhasil diganti!');
+    setTimeout(() => {
+      closeModal('changePwModal');
+      ['newPwd1', 'newPwd2'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    }, 1800);
   } else {
-    if (msgEl) { msgEl.className = 'msg error show'; msgEl.textContent = r.message; setTimeout(() => { if (msgEl.classList.contains('show')) { msgEl.classList.remove('show'); msgEl.className = 'msg'; msgEl.textContent = ''; } }, 5000); }
+    showMsg('changePwMsg', 'error', r.message);
   }
 }
 
-// ==================== MODAL HELPERS ====================
+// ============================================================
+// MODAL HELPERS
+// ============================================================
 function openModal(id) {
-  const el = document.getElementById(id);
-  if (el) el.classList.add('open');
+  document.getElementById(id)?.classList.add('open');
 }
 
 function closeModal(id) {
-  const el = document.getElementById(id);
-  if (el) el.classList.remove('open');
-  if (id === 'addTeacherModal') {
-    document.getElementById('addNama').value = '';
-    document.getElementById('addEmail').value = '';
-    document.getElementById('addPassword').value = '';
-    const msg = document.getElementById('addMsg');
+  document.getElementById(id)?.classList.remove('open');
+
+  // Reset form fields on close
+  const resets = {
+    addTeacherModal: ['addNama', 'addEmail', 'addPassword'],
+    editTeacherModal: ['editPassword'],
+    changePwModal: ['newPwd1', 'newPwd2']
+  };
+  const msgMap = {
+    addTeacherModal: 'addMsg',
+    editTeacherModal: 'editMsg',
+    changePwModal: 'changePwMsg'
+  };
+
+  if (resets[id]) {
+    resets[id].forEach(fieldId => {
+      const el = document.getElementById(fieldId);
+      if (el) el.value = '';
+    });
+  }
+  if (msgMap[id]) {
+    const msg = document.getElementById(msgMap[id]);
     if (msg) { msg.className = 'msg'; msg.textContent = ''; }
   }
-  if (id === 'editTeacherModal') {
-    document.getElementById('editPassword').value = '';
-    const msg = document.getElementById('editMsg');
-    if (msg) { msg.className = 'msg'; msg.textContent = ''; }
+}
+
+function showConfirmModal(title, message, onConfirm, onCancel) {
+  let modal = document.getElementById('confirmModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'confirmModal';
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+      <div class="modal-container" style="max-width:400px">
+        <div class="modal-header">
+          <h3 id="confirmTitle">Konfirmasi</h3>
+          <button class="close-modal" id="confirmCloseBtn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p id="confirmMessage"></p>
+        </div>
+        <div class="modal-footer" style="display:flex;gap:10px;justify-content:flex-end">
+          <button id="confirmCancelBtn" class="btn-secondary">Batal</button>
+          <button id="confirmOkBtn" class="btn-primary">Ya, Lanjutkan</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
   }
-  if (id === 'changePwModal') {
-    document.getElementById('newPwd1').value = '';
-    document.getElementById('newPwd2').value = '';
-    const msg = document.getElementById('changePwMsg');
-    if (msg) { msg.className = 'msg'; msg.textContent = ''; }
-  }
+
+  document.getElementById('confirmTitle').textContent = title;
+  document.getElementById('confirmMessage').textContent = message;
+
+  const close = () => { modal.classList.remove('open'); if (onCancel) onCancel(); };
+  const confirm = () => { modal.classList.remove('open'); if (onConfirm) onConfirm(); };
+
+  // Ganti elemen agar listener lama tidak berganda
+  ['confirmCloseBtn', 'confirmCancelBtn', 'confirmOkBtn'].forEach(btnId => {
+    const old = document.getElementById(btnId);
+    if (!old) return;
+    const neo = old.cloneNode(true);
+    old.parentNode.replaceChild(neo, old);
+    neo.addEventListener('click', btnId === 'confirmOkBtn' ? confirm : close);
+  });
+
+  modal.onclick = (e) => { if (e.target === modal) close(); };
+  modal.classList.add('open');
 }
 
 function initAllModals() {
-  const allCloseButtons = document.querySelectorAll('.close-modal:not(#confirmModal .close-modal)');
-  allCloseButtons.forEach(btn => {
-    btn.addEventListener('click', function () {
-      const modal = this.closest('.modal-overlay');
-      if (modal && modal.id) {
-        closeModal(modal.id);
-      }
+  document.querySelectorAll('.modal-overlay:not(#confirmModal)').forEach(modal => {
+    // Close button
+    modal.querySelectorAll('.close-modal').forEach(btn => {
+      btn.addEventListener('click', () => closeModal(modal.id));
     });
-  });
-
-  const allModals = document.querySelectorAll('.modal-overlay:not(#confirmModal)');
-  allModals.forEach(modal => {
-    modal.addEventListener('click', function (e) {
-      if (e.target === this) {
-        if (this.id) closeModal(this.id);
-      }
+    // Click outside
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal(modal.id);
     });
   });
 }
 
-// ==================== MOBILE MENU ====================
+// ============================================================
+// MOBILE MENU
+// ============================================================
 function initMobileMenu() {
   const hamburger = document.getElementById('hamburger');
   const sidebar = document.querySelector('.sidebar');
   const backdrop = document.getElementById('mobileBackdrop');
+  if (!hamburger || !sidebar || !backdrop) return;
 
-  if (hamburger && sidebar && backdrop) {
-    const newHamburger = hamburger.cloneNode(true);
-    hamburger.parentNode.replaceChild(newHamburger, hamburger);
+  const newHamburger = hamburger.cloneNode(true);
+  hamburger.parentNode.replaceChild(newHamburger, hamburger);
 
-    newHamburger.addEventListener('click', function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      sidebar.classList.toggle('open');
-      backdrop.classList.toggle('show');
+  newHamburger.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    sidebar.classList.toggle('open');
+    backdrop.classList.toggle('show');
+  });
+
+  backdrop.addEventListener('click', () => {
+    sidebar.classList.remove('open');
+    backdrop.classList.remove('show');
+  });
+
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', () => {
+      if (window.innerWidth <= 768) {
+        sidebar.classList.remove('open');
+        backdrop.classList.remove('show');
+      }
     });
-
-    backdrop.addEventListener('click', function () {
-      sidebar.classList.remove('open');
-      backdrop.classList.remove('show');
-    });
-
-    document.querySelectorAll('.nav-item').forEach(item => {
-      item.addEventListener('click', function () {
-        if (window.innerWidth <= 768) {
-          sidebar.classList.remove('open');
-          backdrop.classList.remove('show');
-        }
-      });
-    });
-  }
+  });
 }
 
-// ==================== SWAP LAYOUT FUNCTION ====================
-let isSwapping = false;
-let swapTimeout = null;
-
+// ============================================================
+// SWAP LAYOUT (Login Page)
+// ============================================================
 function initSwapLayout() {
   const authContainer = document.getElementById('authContainer');
   const illustrationSide = document.getElementById('illustrationSide');
   const formSide = document.getElementById('formSide');
+  if (!authContainer) return;
 
-  if (authContainer && illustrationSide) {
-    illustrationSide.addEventListener('click', function (e) {
-      if (isSwapping) return;
-      if (e.target.closest('button') || e.target.closest('input') || e.target.closest('select') || e.target.closest('a')) {
-        return;
-      }
-      if (authContainer.classList.contains('swapped')) return;
+  let isSwapping = false;
 
+  if (illustrationSide) {
+    illustrationSide.addEventListener('click', (e) => {
+      if (isSwapping || authContainer.classList.contains('swapped')) return;
+      if (e.target.closest('button,input,select,a')) return;
       isSwapping = true;
       authContainer.classList.add('swapped');
-
-      if (swapTimeout) clearTimeout(swapTimeout);
-      swapTimeout = setTimeout(() => {
-        isSwapping = false;
-      }, 700);
+      setTimeout(() => { isSwapping = false; }, 700);
     });
   }
 
-  if (authContainer && formSide) {
-    formSide.addEventListener('click', function (e) {
-      if (isSwapping) return;
-      if (e.target.closest('button') || e.target.closest('input') || e.target.closest('select') || e.target.closest('.tab-two')) {
-        return;
-      }
-      if (!authContainer.classList.contains('swapped')) return;
-
+  if (formSide) {
+    formSide.addEventListener('click', (e) => {
+      if (isSwapping || !authContainer.classList.contains('swapped')) return;
+      if (e.target.closest('button,input,select,.tab-two')) return;
       isSwapping = true;
       authContainer.classList.remove('swapped');
-
-      if (swapTimeout) clearTimeout(swapTimeout);
-      swapTimeout = setTimeout(() => {
-        isSwapping = false;
-      }, 700);
+      setTimeout(() => { isSwapping = false; }, 700);
     });
   }
 }
 
-// ==================== NAVIGATION ====================
+// ============================================================
+// NAVIGATION
+// ============================================================
 function navigate(pageId) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -1509,248 +1490,187 @@ function navigate(pageId) {
   const page = document.getElementById('page' + pageId);
   if (page) page.classList.add('active');
 
-  const nav = document.querySelector('.nav-item[data-page="' + pageId + '"]');
+  const nav = document.querySelector(`.nav-item[data-page="${pageId}"]`);
   if (nav) nav.classList.add('active');
 
-  const title = document.getElementById('pageTitle');
-  if (title && nav) title.textContent = nav.textContent.trim();
+  const titleEl = document.getElementById('pageTitle');
+  if (titleEl && nav) titleEl.textContent = nav.textContent.trim();
 
   if (window.innerWidth <= 768) {
-    const sidebar = document.querySelector('.sidebar');
-    const backdrop = document.getElementById('mobileBackdrop');
-    if (sidebar) sidebar.classList.remove('open');
-    if (backdrop) backdrop.classList.remove('show');
+    document.querySelector('.sidebar')?.classList.remove('open');
+    document.getElementById('mobileBackdrop')?.classList.remove('show');
   }
 
-  if (pageId === 'Dashboard') {
-    loadDashboardStats();
-    if (currentUser && currentUser.role === 'admin') {
-      loadAdminScheduleInfo();
-    }
-    if (currentUser && currentUser.role === 'guru') {
-      loadTodayStatus();
-      loadScheduleInfo();
-    }
-    if (currentUser && currentUser.role === 'kepsek') {
-      loadKepsekScheduleInfo();
-    }
-  } else if (pageId === 'Attendance') {
-    setTimeout(function () { initCamera(); loadTodayStatus(); }, 100);
-  } else if (pageId === 'History') {
-    loadHistory();
-  } else if (pageId === 'Teachers') {
-    loadAllTeachers();
-  } else if (pageId === 'Locations') {
-    loadLocations();
-  } else if (pageId === 'Settings') {
-    loadSettings();
+  // Load konten sesuai halaman
+  const role = currentUser?.role;
+
+  switch (pageId) {
+    case 'Dashboard':
+      loadDashboardStats();
+      if (role === 'admin') loadScheduleInfo('adminScheduleInfo');
+      if (role === 'kepsek') loadScheduleInfo('kepsekScheduleInfo');
+      if (role === 'guru') { loadTodayStatus(); loadScheduleInfo('scheduleInfo'); }
+      break;
+    case 'Attendance':
+      setTimeout(() => { initCamera(); loadTodayStatus(); }, 100);
+      break;
+    case 'History':
+      loadHistory();
+      break;
+    case 'Teachers':
+      loadAllTeachers();
+      break;
+    case 'Locations':
+      loadLocations();
+      break;
+    case 'Settings':
+      loadSettings();
+      break;
   }
 }
 
-// ==================== YEAR SELECT ====================
-function populateYears() {
-  const now = getPapuaTime();
-  var yearEl = document.getElementById('histYear');
-  if (yearEl) {
-    var y = now.getFullYear();
-    for (var yr = y - 2; yr <= y + 1; yr++) {
-      var opt = document.createElement('option');
+// ============================================================
+// POPULATE YEAR & MONTH SELECTS
+// ============================================================
+function populateYearMonthSelects() {
+  const d = getWITDate();
+  const currentYear = d.getFullYear();
+  const currentMonth = d.getMonth() + 1;
+
+  ['histYear', 'repYear'].forEach(selId => {
+    const sel = document.getElementById(selId);
+    if (!sel) return;
+    sel.innerHTML = '';
+    for (let yr = currentYear - 2; yr <= currentYear + 1; yr++) {
+      const opt = document.createElement('option');
       opt.value = yr;
       opt.textContent = yr;
-      if (yr === y) opt.selected = true;
-      yearEl.appendChild(opt);
+      if (yr === currentYear) opt.selected = true;
+      sel.appendChild(opt);
     }
-  }
-  var repYear = document.getElementById('repYear');
-  if (repYear) {
-    var y2 = now.getFullYear();
-    for (var yr2 = y2 - 2; yr2 <= y2 + 1; yr2++) {
-      var opt2 = document.createElement('option');
-      opt2.value = yr2;
-      opt2.textContent = yr2;
-      if (yr2 === y2) opt2.selected = true;
-      repYear.appendChild(opt2);
-    }
-  }
+  });
 
-  var histMonth = document.getElementById('histMonth');
-  if (histMonth) histMonth.value = now.getMonth() + 1;
-  var repMonth = document.getElementById('repMonth');
-  if (repMonth) repMonth.value = now.getMonth() + 1;
+  const histMonth = document.getElementById('histMonth');
+  if (histMonth) histMonth.value = currentMonth;
+
+  const repMonth = document.getElementById('repMonth');
+  if (repMonth) repMonth.value = currentMonth;
 }
 
-// ==================== INITIALIZATION ====================
+// ============================================================
+// INIT — DOMContentLoaded
+// ============================================================
 document.addEventListener('DOMContentLoaded', function () {
-  console.log('🚀 Aplikasi dimulai v24.0 - KHUSUS PAPUA (WIT)');
-  console.log('📅 Jam Masuk: 07:00-08:30 WIT');
-  console.log('📅 Senin-Rabu Pulang: 12:00-12:15 WIT');
-  console.log('📅 Kamis-Jumat Pulang: 12:00 WIT');
+  console.log('🚀 Absensi Digital v4.0 — Papua (WIT UTC+9)');
 
-  // Update clock setiap detik
-  updateClock();
-  setInterval(updateClock, 1000);
+  // Clock jalan di semua halaman
+  startClock();
 
-  // INIT DARK MODE (harus dipanggil)
+  // Dark mode
   initDarkMode();
 
-  var path = window.location.pathname;
-  var isDashboard = path.includes('dashboard-');
+  const path = window.location.pathname;
+  const isDashboard = path.includes('dashboard-');
 
+  // ---- HALAMAN DASHBOARD ----
   if (isDashboard) {
-    initMobileMenu();
-    initAllModals();
-
     if (!checkAuth()) { window.location.href = 'index.html'; return; }
 
-    var role = currentUser.role;
+    const role = currentUser.role;
     if (path.includes('dashboard-guru') && role !== 'guru') { window.location.href = 'index.html'; return; }
     if (path.includes('dashboard-kepsek') && role !== 'kepsek') { window.location.href = 'index.html'; return; }
     if (path.includes('dashboard-admin') && role !== 'admin') { window.location.href = 'index.html'; return; }
 
+    initMobileMenu();
+    initAllModals();
     loadProfile();
-    populateYears();
-    loadDashboardStats();
+    populateYearMonthSelects();
 
-    if (role === 'guru') {
-      loadScheduleInfo();
-      loadTodayStatus();
-    }
-    if (role === 'admin') {
-      loadAdminScheduleInfo();
-    }
-    if (role === 'kepsek') {
-      loadKepsekScheduleInfo();
-    }
-
-    document.querySelectorAll('.nav-item').forEach(function (item) {
-      item.addEventListener('click', function (e) {
+    // Nav links
+    document.querySelectorAll('.nav-item').forEach(item => {
+      item.addEventListener('click', (e) => {
         e.preventDefault();
         navigate(item.getAttribute('data-page'));
       });
     });
 
-    var logoutBtn = document.getElementById('logoutBtn');
-    if (logoutBtn) logoutBtn.addEventListener('click', logout);
+    // Logout
+    document.getElementById('logoutBtn')?.addEventListener('click', logout);
 
-    var openChangePw = document.getElementById('openChangePwBtn');
-    if (openChangePw) openChangePw.addEventListener('click', function () { openModal('changePwModal'); });
+    // Change password
+    document.getElementById('openChangePwBtn')?.addEventListener('click', () => openModal('changePwModal'));
+    document.getElementById('changePwBtn')?.addEventListener('click', changePassword);
 
-    var changePwBtn = document.getElementById('changePwBtn');
-    if (changePwBtn) changePwBtn.addEventListener('click', changePassword);
-
-    // Modal close buttons
-    document.getElementById('closeAddModalBtn')?.addEventListener('click', () => closeModal('addTeacherModal'));
-    document.getElementById('closeEditModalBtn')?.addEventListener('click', () => closeModal('editTeacherModal'));
-    document.getElementById('closePwModalBtn')?.addEventListener('click', () => closeModal('changePwModal'));
-
+    // ---- GURU ----
     if (role === 'guru') {
-      var capture = document.getElementById('captureBtn');
-      if (capture) capture.addEventListener('click', capturePhoto);
-      var retake = document.getElementById('retakeBtn');
-      if (retake) retake.addEventListener('click', retakePhoto);
-      var getLoc = document.getElementById('getLocBtn');
-      if (getLoc) getLoc.addEventListener('click', getLocation);
-      var checkIn = document.getElementById('checkInBtn');
-      if (checkIn) checkIn.addEventListener('click', handleCheckIn);
-      var checkOut = document.getElementById('checkOutBtn');
-      if (checkOut) checkOut.addEventListener('click', handleCheckOut);
-      var quickIn = document.getElementById('quickCheckInBtn');
-      if (quickIn) quickIn.addEventListener('click', function () { navigate('Attendance'); });
-      var quickOut = document.getElementById('quickCheckOutBtn');
-      if (quickOut) quickOut.addEventListener('click', function () { navigate('Attendance'); });
-      var loadHist = document.getElementById('loadHistBtn');
-      if (loadHist) loadHist.addEventListener('click', loadHistory);
+      document.getElementById('captureBtn')?.addEventListener('click', capturePhoto);
+      document.getElementById('retakeBtn')?.addEventListener('click', retakePhoto);
+      document.getElementById('getLocBtn')?.addEventListener('click', getLocation);
+      document.getElementById('checkInBtn')?.addEventListener('click', handleCheckIn);
+      document.getElementById('checkOutBtn')?.addEventListener('click', handleCheckOut);
+      document.getElementById('quickCheckInBtn')?.addEventListener('click', () => navigate('Attendance'));
+      document.getElementById('quickCheckOutBtn')?.addEventListener('click', () => navigate('Attendance'));
+      document.getElementById('loadHistBtn')?.addEventListener('click', loadHistory);
     }
 
+    // ---- KEPSEK ----
     if (role === 'kepsek') {
-      var search = document.getElementById('searchTeacher');
-      if (search) search.addEventListener('input', loadAllTeachers);
-      var genRep = document.getElementById('genRepBtn');
-      if (genRep) genRep.addEventListener('click', generateReport);
-      var closeDetail = document.getElementById('closeDetailBtn');
-      if (closeDetail) closeDetail.addEventListener('click', function () {
+      document.getElementById('searchTeacher')?.addEventListener('input', loadAllTeachers);
+      document.getElementById('genRepBtn')?.addEventListener('click', generateReport);
+      document.getElementById('closeDetailBtn')?.addEventListener('click', () => {
         document.getElementById('teacherDetail').style.display = 'none';
       });
     }
 
+    // ---- ADMIN ----
     if (role === 'admin') {
-      var search2 = document.getElementById('searchTeacher');
-      if (search2) search2.addEventListener('input', loadAllTeachers);
-      var filterRole = document.getElementById('filterRole');
-      if (filterRole) filterRole.addEventListener('change', loadAllTeachers);
-      var addTeacher = document.getElementById('addTeacherBtn');
-      if (addTeacher) addTeacher.addEventListener('click', openAddTeacher);
-      var saveAdd = document.getElementById('saveAddBtn');
-      if (saveAdd) saveAdd.addEventListener('click', saveAddTeacher);
-      var saveEdit = document.getElementById('saveEditBtn');
-      if (saveEdit) saveEdit.addEventListener('click', saveEditTeacher);
-      var addLoc = document.getElementById('addLocBtn');
-      if (addLoc) addLoc.addEventListener('click', addLocation);
-      var saveSet = document.getElementById('saveSetBtn');
-      if (saveSet) saveSet.addEventListener('click', saveSettings);
-      var genRep2 = document.getElementById('genRepBtn');
-      if (genRep2) genRep2.addEventListener('click', generateReport);
-      var closeDetail2 = document.getElementById('closeDetailBtn');
-      if (closeDetail2) closeDetail2.addEventListener('click', function () {
+      document.getElementById('searchTeacher')?.addEventListener('input', loadAllTeachers);
+      document.getElementById('filterRole')?.addEventListener('change', loadAllTeachers);
+      document.getElementById('addTeacherBtn')?.addEventListener('click', openAddTeacher);
+      document.getElementById('saveAddBtn')?.addEventListener('click', saveAddTeacher);
+      document.getElementById('saveEditBtn')?.addEventListener('click', saveEditTeacher);
+      document.getElementById('addLocBtn')?.addEventListener('click', addLocation);
+      document.getElementById('saveSetBtn')?.addEventListener('click', saveSettings);
+      document.getElementById('genRepBtn')?.addEventListener('click', generateReport);
+      document.getElementById('closeDetailBtn')?.addEventListener('click', () => {
         document.getElementById('teacherDetail').style.display = 'none';
       });
     }
 
+    // Navigasi awal ke Dashboard
     navigate('Dashboard');
     return;
   }
 
-  // ===== HALAMAN INDEX (LOGIN/REGISTER) =====
+  // ---- HALAMAN INDEX (LOGIN/REGISTER) ----
   loadSchoolName();
   initSwapLayout();
 
   document.querySelectorAll('.tab-two').forEach(tab => {
     tab.addEventListener('click', function () {
-      const targetTab = this.getAttribute('data-tab');
-      switchAuthTab(targetTab);
+      switchAuthTab(this.getAttribute('data-tab'));
     });
   });
 
-  var loginBtn = document.getElementById('loginBtn');
-  if (loginBtn) loginBtn.addEventListener('click', handleLogin);
+  document.getElementById('loginBtn')?.addEventListener('click', handleLogin);
+  document.getElementById('registerBtn')?.addEventListener('click', handleRegister);
+  document.getElementById('resendVerifBtn')?.addEventListener('click', resendVerif);
+  document.getElementById('forgotBtn')?.addEventListener('click', openForgotModal);
+  document.getElementById('closeForgotBtn')?.addEventListener('click', closeForgotModal);
 
-  var registerBtn = document.getElementById('registerBtn');
-  if (registerBtn) registerBtn.addEventListener('click', handleRegister);
+  document.getElementById('forgotModal')?.addEventListener('click', function (e) {
+    if (e.target === this) closeForgotModal();
+  });
 
-  var resendBtn = document.getElementById('resendVerifBtn');
-  if (resendBtn) resendBtn.addEventListener('click', resendVerif);
+  document.getElementById('sendOtpBtn')?.addEventListener('click', sendOtp);
+  document.getElementById('verifyOtpBtn')?.addEventListener('click', verifyOtp);
+  document.getElementById('resendOtpBtn')?.addEventListener('click', resendOtp);
+  document.getElementById('resetPwdBtn')?.addEventListener('click', doResetPassword);
 
-  var forgotBtn = document.getElementById('forgotBtn');
-  if (forgotBtn) forgotBtn.addEventListener('click', openForgotModal);
+  // Enter key di field password login
+  document.getElementById('loginPassword')?.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') handleLogin(e);
+  });
 
-  var closeForgot = document.getElementById('closeForgotBtn');
-  if (closeForgot) closeForgot.addEventListener('click', closeForgotModal);
-
-  var forgotModal = document.getElementById('forgotModal');
-  if (forgotModal) {
-    forgotModal.addEventListener('click', function (e) {
-      if (e.target === forgotModal) closeForgotModal();
-    });
-  }
-
-  var sendOtpEl = document.getElementById('sendOtpBtn');
-  if (sendOtpEl) sendOtpEl.addEventListener('click', sendOtp);
-
-  var verifyOtpEl = document.getElementById('verifyOtpBtn');
-  if (verifyOtpEl) verifyOtpEl.addEventListener('click', verifyOtp);
-
-  var resendOtpEl = document.getElementById('resendOtpBtn');
-  if (resendOtpEl) resendOtpEl.addEventListener('click', resendOtp);
-
-  var resetPwd = document.getElementById('resetPwdBtn');
-  if (resetPwd) resetPwd.addEventListener('click', doResetPassword);
-
-  var loginPassword = document.getElementById('loginPassword');
-  if (loginPassword) {
-    loginPassword.addEventListener('keypress', function (e) {
-      if (e.key === 'Enter') handleLogin(e);
-    });
-  }
-
-  console.log('✅ Aplikasi siap digunakan v24.0 - Khusus Papua (WIT)');
+  console.log('✅ Siap — v4.0 WIT');
 });
