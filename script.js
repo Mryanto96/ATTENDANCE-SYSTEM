@@ -11,7 +11,7 @@
 // ============================================================
 // KONFIGURASI
 // ============================================================
-const API_URL = "https://script.google.com/macros/s/AKfycbyAiP5NvqqJDqxATOD1d_KmSfiRlJN9241jQUYoaqnddk25ahVFBOH52sdlVlHx_ASo/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycby7iZN14--GV1FbAv0IrrrBNDuCAunjAX2zMJ7_daRRPDNpSENUMFQm72LsieF-2gU2/exec";
 
 const DEFAULT_ADMIN = {
   email: 'admin@sekolah.com',
