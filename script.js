@@ -383,18 +383,18 @@ async function handleRegister(e) {
   }
 }
 
-// ============================================================
-// AUTH TAB SWITCH
-// ============================================================
-function switchAuthTab(tabName) {
-  document.querySelectorAll('.tab-two').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.auth-form-panel').forEach(p => p.classList.remove('active'));
+// // ============================================================
+// // AUTH TAB SWITCH
+// // ============================================================
+// function switchAuthTab(tabName) {
+//   document.querySelectorAll('.tab-two').forEach(t => t.classList.remove('active'));
+//   document.querySelectorAll('.auth-form-panel').forEach(p => p.classList.remove('active'));
 
-  const tab = document.querySelector(`.tab-two[data-tab="${tabName}"]`);
-  const panel = document.getElementById(`panel-${tabName}`);
-  if (tab) tab.classList.add('active');
-  if (panel) panel.classList.add('active');
-}
+//   const tab = document.querySelector(`.tab-two[data-tab="${tabName}"]`);
+//   const panel = document.getElementById(`panel-${tabName}`);
+//   if (tab) tab.classList.add('active');
+//   if (panel) panel.classList.add('active');
+// }
 
 // ============================================================
 // RESEND VERIFICATION
