@@ -1,7 +1,7 @@
 // ============================================================
 // SISTEM ABSENSI DIGITAL - FRONTEND
-// Versi: 25.0 - KHUSUS PAPUA (WIT)
-// FIX: Hapus swap layout, hanya tab login/register
+// Versi: 26.0 - KHUSUS PAPUA (WIT)
+// FITUR BARU: Laporan Per Guru, Preview, Cetak PDF, Kirim Email
 // ============================================================
 
 const API_URL = "https://script.google.com/macros/s/AKfycbzwSW5arD5HQnpfv2yM5vgFJn0-YT_Qlt42X6nQK_0SSv9lyi8xq-Wj_VqgzKmNm3xF/exec";
@@ -112,7 +112,6 @@ function timeToMinutes(timeStr) {
 
 // ==================== SWITCH TAB LOGIN/REGISTER ====================
 function switchAuthTab(tabName) {
-  // Update tab buttons
   const tabs = document.querySelectorAll('.tab-two');
   tabs.forEach(tab => {
     tab.classList.remove('active');
@@ -120,7 +119,6 @@ function switchAuthTab(tabName) {
   const activeTab = document.querySelector(`.tab-two[data-tab="${tabName}"]`);
   if (activeTab) activeTab.classList.add('active');
 
-  // Update forms
   const loginForm = document.getElementById('loginForm');
   const registerForm = document.getElementById('registerForm');
 
@@ -1051,6 +1049,302 @@ async function loadAllTeachers() {
   ).join('');
 }
 
+// ==================== LOAD TEACHER LIST FOR DROPDOWN (KEPSEK) ====================
+async function loadTeacherList() {
+  const r = await apiCall({ action: 'getAllUsers' });
+  if (r.status === 'success' && r.data) {
+    const guruOnly = r.data.filter(u => u.role === 'guru');
+
+    const selectedTeacher = document.getElementById('selectedTeacher');
+    const previewTeacher = document.getElementById('previewTeacher');
+
+    const options = guruOnly.map(g => `<option value="${g.email}">${g.nama} (${g.email})</option>`).join('');
+
+    if (selectedTeacher) selectedTeacher.innerHTML = '<option value="">-- Pilih Guru --</option>' + options;
+    if (previewTeacher) previewTeacher.innerHTML = '<option value="">-- Pilih Guru --</option>' + options;
+  }
+}
+
+// ==================== PREVIEW LAPORAN PER GURU (KEPSEK) ====================
+async function previewTeacherReport() {
+  const email = document.getElementById('previewTeacher')?.value;
+  const month = document.getElementById('previewMonth')?.value;
+  const year = document.getElementById('previewYear')?.value;
+
+  if (!email) {
+    showMsg('teacherReportMsg', 'error', 'Pilih guru terlebih dahulu', false);
+    return;
+  }
+
+  setBtn('previewReportBtn', true, 'Memuat preview...');
+  const r = await apiCall({ action: 'getAttendanceHistory', email, month, year });
+  setBtn('previewReportBtn', false, '👁️ Preview Laporan');
+
+  if (r.status !== 'success') {
+    showMsg('teacherReportMsg', 'error', 'Gagal mengambil data', false);
+    return;
+  }
+
+  const teacherName = document.getElementById('previewTeacher').options[document.getElementById('previewTeacher').selectedIndex]?.text.split(' (')[0] || email;
+  const monthNames = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+  const monthName = monthNames[parseInt(month)] || month;
+
+  let html = `
+    <div style="margin-top: 20px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 16px;">
+        <h4 style="margin: 0;">📋 Laporan Absensi Guru</h4>
+        <button class="btn-secondary btn-sm" onclick="printPreviewReport()">🖨️ Cetak / PDF</button>
+      </div>
+      <p><strong>Nama Guru:</strong> ${teacherName}</p>
+      <p><strong>Email:</strong> ${email}</p>
+      <p><strong>Periode:</strong> ${monthName} ${year}</p>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>No</th>
+              <th>Tanggal</th>
+              <th>Check In</th>
+              <th>Check Out</th>
+              <th>Lokasi</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+  `;
+
+  if (r.data.length === 0) {
+    html += `<tr><td colspan="6" class="empty-state">Belum ada data absensi bulan ini</td></tr>`;
+  } else {
+    r.data.forEach((item, i) => {
+      html += `
+        <tr>
+          <td>${i + 1}</td>
+          <td>${formatDate(item.tanggal)}</td>
+          <td>${item.checkIn}</td>
+          <td>${item.checkOut}</td>
+          <td>${item.lokasi}</td>
+          <td><span class="badge badge-success">${item.status}</span></td>
+        </tr>
+      `;
+    });
+  }
+
+  html += `
+          </tbody>
+        </table>
+      </div>
+      <p style="color: var(--text2); font-size: 11px; margin-top: 12px;">Dicetak: ${new Date().toLocaleString()}</p>
+    </div>
+  `;
+
+  const previewContainer = document.getElementById('previewContainer');
+  const previewContent = document.getElementById('previewContent');
+  if (previewContainer && previewContent) {
+    previewContent.innerHTML = html;
+    previewContainer.style.display = 'block';
+
+    // Simpan data untuk print
+    window.previewData = { html: previewContent.innerHTML, teacherName, email, monthName, year };
+  }
+}
+
+// ==================== PRINT PREVIEW REPORT (PDF) ====================
+function printPreviewReport() {
+  if (!window.previewData) return;
+
+  const printHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Laporan ${window.previewData.teacherName} - ${window.previewData.monthName} ${window.previewData.year}</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Times New Roman', Arial, sans-serif; padding: 20px; background: white; }
+        h1 { color: #1a1a2e; text-align: center; margin-bottom: 20px; }
+        .info { margin-bottom: 20px; }
+        .info p { margin: 5px 0; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #333; padding: 8px; text-align: left; }
+        th { background: #1a1a2e; color: white; }
+        .footer { margin-top: 20px; font-size: 11px; color: #666; text-align: center; }
+        @media print {
+          body { padding: 0; }
+          .no-print { display: none; }
+          button { display: none; }
+        }
+      </style>
+    </head>
+    <body>
+      <button class="no-print" onclick="window.print()" style="margin-bottom: 20px; padding: 8px 16px; cursor: pointer;">🖨️ Cetak / Simpan PDF</button>
+      <h1>📋 Laporan Absensi Guru</h1>
+      <div class="info">
+        <p><strong>Nama Guru:</strong> ${window.previewData.teacherName}</p>
+        <p><strong>Email:</strong> ${window.previewData.email}</p>
+        <p><strong>Periode:</strong> ${window.previewData.monthName} ${window.previewData.year}</p>
+      </div>
+      ${window.previewData.html}
+      <div class="footer">
+        <p>Dicetak otomatis dari Sistem Absensi Digital | ${new Date().toLocaleString()}</p>
+      </div>
+    </body>
+    </html>
+  `;
+
+  const printWindow = window.open();
+  printWindow.document.write(printHtml);
+  printWindow.document.close();
+}
+
+// ==================== KIRIM LAPORAN PER GURU KE EMAIL (KEPSEK) ====================
+async function sendTeacherReport() {
+  const email = document.getElementById('selectedTeacher')?.value;
+  const month = document.getElementById('repMonthTeacher')?.value;
+  const year = document.getElementById('repYearTeacher')?.value;
+  const sendTo = document.getElementById('teacherReportEmail')?.value;
+
+  if (!email) {
+    showMsg('teacherReportMsg', 'error', 'Pilih guru terlebih dahulu', false);
+    return;
+  }
+
+  if (!sendTo) {
+    showMsg('teacherReportMsg', 'error', 'Masukkan email tujuan', false);
+    return;
+  }
+
+  setBtn('genTeacherReportBtn', true, 'Mengirim...');
+  const r = await apiCall({ action: 'generateMonthlyReport', month, year, sendToEmail: sendTo, filterEmail: email });
+  setBtn('genTeacherReportBtn', false, '📤 Kirim Laporan Guru Terpilih');
+
+  if (r.status === 'success') {
+    showMsg('teacherReportMsg', 'success', r.message, false);
+  } else {
+    showMsg('teacherReportMsg', 'error', r.message || 'Gagal mengirim laporan', false);
+  }
+}
+
+// ==================== CETAK/PDF LAPORAN PER GURU (KEPSEK) ====================
+async function printTeacherReport() {
+  const email = document.getElementById('selectedTeacher')?.value;
+  const month = document.getElementById('repMonthTeacher')?.value;
+  const year = document.getElementById('repYearTeacher')?.value;
+
+  if (!email) {
+    showMsg('teacherReportMsg', 'error', 'Pilih guru terlebih dahulu', false);
+    return;
+  }
+
+  setBtn('printTeacherReportBtn', true, 'Memuat...');
+  const r = await apiCall({ action: 'getAttendanceHistory', email, month, year });
+  setBtn('printTeacherReportBtn', false, '🖨️ Cetak / PDF Guru Terpilih');
+
+  if (r.status !== 'success') {
+    showMsg('teacherReportMsg', 'error', 'Gagal mengambil data', false);
+    return;
+  }
+
+  const teacherName = document.getElementById('selectedTeacher').options[document.getElementById('selectedTeacher').selectedIndex]?.text.split(' (')[0] || email;
+  const monthNames = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+  const monthName = monthNames[parseInt(month)] || month;
+
+  let html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Laporan ${teacherName} - ${monthName} ${year}</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Times New Roman', Arial, sans-serif; padding: 20px; background: white; }
+        h1 { color: #1a1a2e; text-align: center; margin-bottom: 20px; }
+        .info { margin-bottom: 20px; }
+        .info p { margin: 5px 0; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #333; padding: 8px; text-align: left; }
+        th { background: #1a1a2e; color: white; }
+        .footer { margin-top: 20px; font-size: 11px; color: #666; text-align: center; }
+        @media print {
+          body { padding: 0; }
+          .no-print { display: none; }
+        }
+      </style>
+    </head>
+    <body>
+      <button class="no-print" onclick="window.print()" style="margin-bottom: 20px; padding: 8px 16px; cursor: pointer;">🖨️ Cetak / Simpan PDF</button>
+      <h1>📋 Laporan Absensi Guru</h1>
+      <div class="info">
+        <p><strong>Nama Guru:</strong> ${teacherName}</p>
+        <p><strong>Email:</strong> ${email}</p>
+        <p><strong>Periode:</strong> ${monthName} ${year}</p>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>No</th>
+            <th>Tanggal</th>
+            <th>Check In</th>
+            <th>Check Out</th>
+            <th>Lokasi</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+  `;
+
+  if (r.data.length === 0) {
+    html += `<tr><td colspan="6" style="text-align: center;">Belum ada data absensi bulan ini</td></tr>`;
+  } else {
+    r.data.forEach((item, i) => {
+      html += `
+        <tr>
+          <td>${i + 1}</td>
+          <td>${formatDate(item.tanggal)}</td>
+          <td>${item.checkIn}</td>
+          <td>${item.checkOut}</td>
+          <td>${item.lokasi}</td>
+          <td>${item.status}</td>
+        </tr>
+      `;
+    });
+  }
+
+  html += `
+        </tbody>
+      </table>
+      <div class="footer">
+        <p>Dicetak otomatis dari Sistem Absensi Digital | ${new Date().toLocaleString()}</p>
+      </div>
+    </body>
+    </html>
+  `;
+
+  const printWindow = window.open();
+  printWindow.document.write(html);
+  printWindow.document.close();
+}
+
+// ==================== GENERATE REPORT (SEMUA GURU) ====================
+async function generateReport() {
+  if (isSubmitting) return;
+  const month = document.getElementById('repMonth')?.value;
+  const year = document.getElementById('repYear')?.value;
+  const email = document.getElementById('repEmail')?.value?.trim() || currentUser?.email;
+  if (!month || !year || !email) {
+    const msgEl = document.getElementById('repMsg');
+    if (msgEl) { msgEl.className = 'msg error show'; msgEl.textContent = 'Lengkapi semua field'; setTimeout(() => { if (msgEl.classList.contains('show')) { msgEl.classList.remove('show'); msgEl.className = 'msg'; msgEl.textContent = ''; } }, 5000); }
+    return;
+  }
+
+  isSubmitting = true;
+  setBtn('genRepBtn', true, 'Generate Laporan');
+  const msgEl = document.getElementById('repMsg');
+  if (msgEl) { msgEl.className = 'msg loading show'; msgEl.textContent = 'Mengirim laporan...'; }
+
+  const r = await apiCall({ action: 'generateMonthlyReport', month, year, sendToEmail: email });
+  isSubmitting = false; setBtn('genRepBtn', false, '📤 Kirim Laporan Semua Guru');
+  if (msgEl) { msgEl.className = 'msg ' + (r.status === 'success' ? 'success' : 'error') + ' show'; msgEl.textContent = r.message; setTimeout(() => { if (msgEl.classList.contains('show')) { msgEl.classList.remove('show'); msgEl.className = 'msg'; msgEl.textContent = ''; } }, 5000); }
+}
+
 // ==================== CONFIRM TOGGLE BLOCK ====================
 window.confirmToggleBlock = function (email, currentStatus) {
   const isBlocked = currentStatus === 'Blocked';
@@ -1104,7 +1398,7 @@ window.viewTeacherAttendance = async function (email) {
 
   if (r.status === 'success' && r.data && r.data.length > 0) {
     detContent.innerHTML = '<div class="table-wrap"><table class="data-table"><thead><tr><th>Tanggal</th><th>Check In</th><th>Check Out</th><th>Lokasi</th></tr></thead><tbody>' +
-      r.data.map(d => '<tr><td>' + formatDate(d.tanggal) + '</td><td>' + (d.checkIn || '-') + '</td><td>' + (d.checkOut || '-') + '</td><td>' + (d.lokasi || '-') + '</td></tr>').join('') +
+      r.data.map(d => '<td>' + formatDate(d.tanggal) + '</td><td>' + (d.checkIn || '-') + '</td><td>' + (d.checkOut || '-') + '</td><td>' + (d.lokasi || '-') + '</td></tr>').join('') +
       '</tbody></table></div>';
   } else {
     detContent.innerHTML = '<div class="empty-state"><span class="icon">📭</span>Belum ada data absensi bulan ini</div>';
@@ -1209,7 +1503,7 @@ async function loadLocations() {
   if (r.status === 'success' && r.data && r.data.length > 0) {
     tbody.innerHTML = r.data.map(loc =>
       '<tr>' +
-      '<td><strong>' + loc.nama_kelas + '</strong></td>' +
+      '<td><strong>' + loc.nama_kelas + '</strong><td>' +
       '<td>' + loc.lat + '</td>' +
       '<td>' + loc.lng + '</td>' +
       '<td><span class="badge badge-info">' + loc.radius_meter + ' m</span></td>' +
@@ -1217,7 +1511,7 @@ async function loadLocations() {
       '</tr>'
     ).join('');
   } else {
-    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Belum ada lokasi terdaftar</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Belum ada lokasi terdaftar</tbody>';
   }
 }
 
@@ -1322,28 +1616,6 @@ async function saveSettings() {
   }
 }
 
-// ==================== REPORT ====================
-async function generateReport() {
-  if (isSubmitting) return;
-  const month = document.getElementById('repMonth')?.value;
-  const year = document.getElementById('repYear')?.value;
-  const email = document.getElementById('repEmail')?.value?.trim() || currentUser?.email;
-  if (!month || !year || !email) {
-    const msgEl = document.getElementById('repMsg');
-    if (msgEl) { msgEl.className = 'msg error show'; msgEl.textContent = 'Lengkapi semua field'; setTimeout(() => { if (msgEl.classList.contains('show')) { msgEl.classList.remove('show'); msgEl.className = 'msg'; msgEl.textContent = ''; } }, 5000); }
-    return;
-  }
-
-  isSubmitting = true;
-  setBtn('genRepBtn', true, 'Generate Laporan');
-  const msgEl = document.getElementById('repMsg');
-  if (msgEl) { msgEl.className = 'msg loading show'; msgEl.textContent = 'Mengirim laporan...'; }
-
-  const r = await apiCall({ action: 'generateMonthlyReport', month, year, sendToEmail: email });
-  isSubmitting = false; setBtn('genRepBtn', false, 'Generate Laporan');
-  if (msgEl) { msgEl.className = 'msg ' + (r.status === 'success' ? 'success' : 'error') + ' show'; msgEl.textContent = r.message; setTimeout(() => { if (msgEl.classList.contains('show')) { msgEl.classList.remove('show'); msgEl.className = 'msg'; msgEl.textContent = ''; } }, 5000); }
-}
-
 // ==================== CHANGE PASSWORD ====================
 async function changePassword() {
   if (isSubmitting) return;
@@ -1410,7 +1682,7 @@ function initAllModals() {
   allCloseButtons.forEach(btn => {
     btn.addEventListener('click', function () {
       const modal = this.closest('.modal-overlay');
-      if (modal && modal.id) {
+      if (modal?.id) {
         closeModal(modal.id);
       }
     });
@@ -1419,8 +1691,8 @@ function initAllModals() {
   const allModals = document.querySelectorAll('.modal-overlay:not(#confirmModal)');
   allModals.forEach(modal => {
     modal.addEventListener('click', function (e) {
-      if (e.target === this) {
-        if (this.id) closeModal(this.id);
+      if (e.target === this && this.id) {
+        closeModal(this.id);
       }
     });
   });
@@ -1436,20 +1708,20 @@ function initMobileMenu() {
     const newHamburger = hamburger.cloneNode(true);
     hamburger.parentNode.replaceChild(newHamburger, hamburger);
 
-    newHamburger.addEventListener('click', function (e) {
+    newHamburger.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
       sidebar.classList.toggle('open');
       backdrop.classList.toggle('show');
     });
 
-    backdrop.addEventListener('click', function () {
+    backdrop.addEventListener('click', () => {
       sidebar.classList.remove('open');
       backdrop.classList.remove('show');
     });
 
     document.querySelectorAll('.nav-item').forEach(item => {
-      item.addEventListener('click', function () {
+      item.addEventListener('click', () => {
         if (window.innerWidth <= 768) {
           sidebar.classList.remove('open');
           backdrop.classList.remove('show');
@@ -1467,7 +1739,7 @@ function navigate(pageId) {
   const page = document.getElementById('page' + pageId);
   if (page) page.classList.add('active');
 
-  const nav = document.querySelector('.nav-item[data-page="' + pageId + '"]');
+  const nav = document.querySelector(`.nav-item[data-page="${pageId}"]`);
   if (nav) nav.classList.add('active');
 
   const title = document.getElementById('pageTitle');
@@ -1482,18 +1754,14 @@ function navigate(pageId) {
 
   if (pageId === 'Dashboard') {
     loadDashboardStats();
-    if (currentUser && currentUser.role === 'admin') {
-      loadAdminScheduleInfo();
-    }
-    if (currentUser && currentUser.role === 'guru') {
+    if (currentUser?.role === 'admin') loadAdminScheduleInfo();
+    if (currentUser?.role === 'guru') {
       loadTodayStatus();
       loadScheduleInfo();
     }
-    if (currentUser && currentUser.role === 'kepsek') {
-      loadKepsekScheduleInfo();
-    }
+    if (currentUser?.role === 'kepsek') loadKepsekScheduleInfo();
   } else if (pageId === 'Attendance') {
-    setTimeout(function () { initCamera(); loadTodayStatus(); }, 100);
+    setTimeout(() => { initCamera(); loadTodayStatus(); }, 100);
   } else if (pageId === 'History') {
     loadHistory();
   } else if (pageId === 'Teachers') {
@@ -1508,57 +1776,100 @@ function navigate(pageId) {
 // ==================== YEAR SELECT ====================
 function populateYears() {
   const now = getPapuaTime();
-  var yearEl = document.getElementById('histYear');
-  if (yearEl) {
-    var y = now.getFullYear();
-    for (var yr = y - 2; yr <= y + 1; yr++) {
-      var opt = document.createElement('option');
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+
+  const histYear = document.getElementById('histYear');
+  if (histYear) {
+    for (let yr = currentYear - 2; yr <= currentYear + 1; yr++) {
+      const opt = document.createElement('option');
       opt.value = yr;
       opt.textContent = yr;
-      if (yr === y) opt.selected = true;
-      yearEl.appendChild(opt);
-    }
-  }
-  var repYear = document.getElementById('repYear');
-  if (repYear) {
-    var y2 = now.getFullYear();
-    for (var yr2 = y2 - 2; yr2 <= y2 + 1; yr2++) {
-      var opt2 = document.createElement('option');
-      opt2.value = yr2;
-      opt2.textContent = yr2;
-      if (yr2 === y2) opt2.selected = true;
-      repYear.appendChild(opt2);
+      if (yr === currentYear) opt.selected = true;
+      histYear.appendChild(opt);
     }
   }
 
-  var histMonth = document.getElementById('histMonth');
-  if (histMonth) histMonth.value = now.getMonth() + 1;
-  var repMonth = document.getElementById('repMonth');
-  if (repMonth) repMonth.value = now.getMonth() + 1;
+  const repYear = document.getElementById('repYear');
+  if (repYear) {
+    for (let yr = currentYear - 2; yr <= currentYear + 1; yr++) {
+      const opt = document.createElement('option');
+      opt.value = yr;
+      opt.textContent = yr;
+      if (yr === currentYear) opt.selected = true;
+      repYear.appendChild(opt);
+    }
+  }
+
+  const repYearTeacher = document.getElementById('repYearTeacher');
+  if (repYearTeacher) {
+    for (let yr = currentYear - 2; yr <= currentYear + 1; yr++) {
+      const opt = document.createElement('option');
+      opt.value = yr;
+      opt.textContent = yr;
+      if (yr === currentYear) opt.selected = true;
+      repYearTeacher.appendChild(opt);
+    }
+  }
+
+  const previewYear = document.getElementById('previewYear');
+  if (previewYear) {
+    for (let yr = currentYear - 2; yr <= currentYear + 1; yr++) {
+      const opt = document.createElement('option');
+      opt.value = yr;
+      opt.textContent = yr;
+      if (yr === currentYear) opt.selected = true;
+      previewYear.appendChild(opt);
+    }
+  }
+
+  const histMonth = document.getElementById('histMonth');
+  if (histMonth) histMonth.value = currentMonth;
+
+  const repMonth = document.getElementById('repMonth');
+  if (repMonth) repMonth.value = currentMonth;
+
+  const repMonthTeacher = document.getElementById('repMonthTeacher');
+  if (repMonthTeacher) repMonthTeacher.value = currentMonth;
+
+  const previewMonth = document.getElementById('previewMonth');
+  if (previewMonth) previewMonth.value = currentMonth;
 }
 
 // ==================== INITIALIZATION ====================
-document.addEventListener('DOMContentLoaded', function () {
-  console.log('🚀 Aplikasi dimulai v25.0 - KHUSUS PAPUA (WIT)');
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('🚀 Aplikasi dimulai v26.0 - KHUSUS PAPUA (WIT)');
 
   updateClock();
   setInterval(updateClock, 1000);
 
   initDarkMode();
 
-  var path = window.location.pathname;
-  var isDashboard = path.includes('dashboard-');
+  const path = window.location.pathname;
+  const isDashboard = path.includes('dashboard-');
 
   if (isDashboard) {
     initMobileMenu();
     initAllModals();
 
-    if (!checkAuth()) { window.location.href = 'index.html'; return; }
+    if (!checkAuth()) {
+      window.location.href = 'index.html';
+      return;
+    }
 
-    var role = currentUser.role;
-    if (path.includes('dashboard-guru') && role !== 'guru') { window.location.href = 'index.html'; return; }
-    if (path.includes('dashboard-kepsek') && role !== 'kepsek') { window.location.href = 'index.html'; return; }
-    if (path.includes('dashboard-admin') && role !== 'admin') { window.location.href = 'index.html'; return; }
+    const role = currentUser.role;
+    if (path.includes('dashboard-guru') && role !== 'guru') {
+      window.location.href = 'index.html';
+      return;
+    }
+    if (path.includes('dashboard-kepsek') && role !== 'kepsek') {
+      window.location.href = 'index.html';
+      return;
+    }
+    if (path.includes('dashboard-admin') && role !== 'admin') {
+      window.location.href = 'index.html';
+      return;
+    }
 
     loadProfile();
     populateYears();
@@ -1573,79 +1884,59 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     if (role === 'kepsek') {
       loadKepsekScheduleInfo();
+      loadTeacherList(); // Load dropdown guru
+
+      // Event listeners untuk fitur laporan per guru
+      document.getElementById('previewReportBtn')?.addEventListener('click', previewTeacherReport);
+      document.getElementById('genTeacherReportBtn')?.addEventListener('click', sendTeacherReport);
+      document.getElementById('printTeacherReportBtn')?.addEventListener('click', printTeacherReport);
     }
 
-    document.querySelectorAll('.nav-item').forEach(function (item) {
-      item.addEventListener('click', function (e) {
+    document.querySelectorAll('.nav-item').forEach(item => {
+      item.addEventListener('click', (e) => {
         e.preventDefault();
         navigate(item.getAttribute('data-page'));
       });
     });
 
-    var logoutBtn = document.getElementById('logoutBtn');
-    if (logoutBtn) logoutBtn.addEventListener('click', logout);
-
-    var openChangePw = document.getElementById('openChangePwBtn');
-    if (openChangePw) openChangePw.addEventListener('click', function () { openModal('changePwModal'); });
-
-    var changePwBtn = document.getElementById('changePwBtn');
-    if (changePwBtn) changePwBtn.addEventListener('click', changePassword);
-
-    document.getElementById('closeAddModalBtn')?.addEventListener('click', () => closeModal('addTeacherModal'));
-    document.getElementById('closeEditModalBtn')?.addEventListener('click', () => closeModal('editTeacherModal'));
+    document.getElementById('logoutBtn')?.addEventListener('click', logout);
+    document.getElementById('openChangePwBtn')?.addEventListener('click', () => openModal('changePwModal'));
+    document.getElementById('changePwBtn')?.addEventListener('click', changePassword);
     document.getElementById('closePwModalBtn')?.addEventListener('click', () => closeModal('changePwModal'));
 
     if (role === 'guru') {
-      var capture = document.getElementById('captureBtn');
-      if (capture) capture.addEventListener('click', capturePhoto);
-      var retake = document.getElementById('retakeBtn');
-      if (retake) retake.addEventListener('click', retakePhoto);
-      var getLoc = document.getElementById('getLocBtn');
-      if (getLoc) getLoc.addEventListener('click', getLocation);
-      var checkIn = document.getElementById('checkInBtn');
-      if (checkIn) checkIn.addEventListener('click', handleCheckIn);
-      var checkOut = document.getElementById('checkOutBtn');
-      if (checkOut) checkOut.addEventListener('click', handleCheckOut);
-      var quickIn = document.getElementById('quickCheckInBtn');
-      if (quickIn) quickIn.addEventListener('click', function () { navigate('Attendance'); });
-      var quickOut = document.getElementById('quickCheckOutBtn');
-      if (quickOut) quickOut.addEventListener('click', function () { navigate('Attendance'); });
-      var loadHist = document.getElementById('loadHistBtn');
-      if (loadHist) loadHist.addEventListener('click', loadHistory);
+      document.getElementById('captureBtn')?.addEventListener('click', capturePhoto);
+      document.getElementById('retakeBtn')?.addEventListener('click', retakePhoto);
+      document.getElementById('getLocBtn')?.addEventListener('click', getLocation);
+      document.getElementById('checkInBtn')?.addEventListener('click', handleCheckIn);
+      document.getElementById('checkOutBtn')?.addEventListener('click', handleCheckOut);
+      document.getElementById('quickCheckInBtn')?.addEventListener('click', () => navigate('Attendance'));
+      document.getElementById('quickCheckOutBtn')?.addEventListener('click', () => navigate('Attendance'));
+      document.getElementById('loadHistBtn')?.addEventListener('click', loadHistory);
     }
 
     if (role === 'kepsek') {
-      var search = document.getElementById('searchTeacher');
-      if (search) search.addEventListener('input', loadAllTeachers);
-      var genRep = document.getElementById('genRepBtn');
-      if (genRep) genRep.addEventListener('click', generateReport);
-      var closeDetail = document.getElementById('closeDetailBtn');
-      if (closeDetail) closeDetail.addEventListener('click', function () {
+      document.getElementById('searchTeacher')?.addEventListener('input', loadAllTeachers);
+      document.getElementById('genRepBtn')?.addEventListener('click', generateReport);
+      document.getElementById('closeDetailBtn')?.addEventListener('click', () => {
         document.getElementById('teacherDetail').style.display = 'none';
       });
     }
 
     if (role === 'admin') {
-      var search2 = document.getElementById('searchTeacher');
-      if (search2) search2.addEventListener('input', loadAllTeachers);
-      var filterRole = document.getElementById('filterRole');
-      if (filterRole) filterRole.addEventListener('change', loadAllTeachers);
-      var addTeacher = document.getElementById('addTeacherBtn');
-      if (addTeacher) addTeacher.addEventListener('click', openAddTeacher);
-      var saveAdd = document.getElementById('saveAddBtn');
-      if (saveAdd) saveAdd.addEventListener('click', saveAddTeacher);
-      var saveEdit = document.getElementById('saveEditBtn');
-      if (saveEdit) saveEdit.addEventListener('click', saveEditTeacher);
-      var addLoc = document.getElementById('addLocBtn');
-      if (addLoc) addLoc.addEventListener('click', addLocation);
-      var saveSet = document.getElementById('saveSetBtn');
-      if (saveSet) saveSet.addEventListener('click', saveSettings);
-      var genRep2 = document.getElementById('genRepBtn');
-      if (genRep2) genRep2.addEventListener('click', generateReport);
-      var closeDetail2 = document.getElementById('closeDetailBtn');
-      if (closeDetail2) closeDetail2.addEventListener('click', function () {
+      document.getElementById('searchTeacher')?.addEventListener('input', loadAllTeachers);
+      document.getElementById('filterRole')?.addEventListener('change', loadAllTeachers);
+      document.getElementById('addTeacherBtn')?.addEventListener('click', openAddTeacher);
+      document.getElementById('saveAddBtn')?.addEventListener('click', saveAddTeacher);
+      document.getElementById('saveEditBtn')?.addEventListener('click', saveEditTeacher);
+      document.getElementById('addLocBtn')?.addEventListener('click', addLocation);
+      document.getElementById('saveSetBtn')?.addEventListener('click', saveSettings);
+      document.getElementById('genRepBtn')?.addEventListener('click', generateReport);
+      document.getElementById('closeDetailBtn')?.addEventListener('click', () => {
         document.getElementById('teacherDetail').style.display = 'none';
       });
+      document.getElementById('closeAddModalBtn')?.addEventListener('click', () => closeModal('addTeacherModal'));
+      document.getElementById('closeEditModalBtn')?.addEventListener('click', () => closeModal('editTeacherModal'));
     }
 
     navigate('Dashboard');
@@ -1655,53 +1946,28 @@ document.addEventListener('DOMContentLoaded', function () {
   // ===== HALAMAN INDEX (LOGIN/REGISTER) =====
   loadSchoolName();
 
-  // Setup tab switches
-  const loginTab = document.querySelector('.tab-two[data-tab="login"]');
-  const registerTab = document.querySelector('.tab-two[data-tab="register"]');
-
-  if (loginTab) loginTab.addEventListener('click', function () { switchAuthTab('login'); });
-  if (registerTab) registerTab.addEventListener('click', function () { switchAuthTab('register'); });
-
-  var loginBtn = document.getElementById('loginBtn');
-  if (loginBtn) loginBtn.addEventListener('click', handleLogin);
-
-  var registerBtn = document.getElementById('registerBtn');
-  if (registerBtn) registerBtn.addEventListener('click', handleRegister);
-
-  var resendBtn = document.getElementById('resendVerifBtn');
-  if (resendBtn) resendBtn.addEventListener('click', resendVerif);
-
-  var forgotBtn = document.getElementById('forgotBtn');
-  if (forgotBtn) forgotBtn.addEventListener('click', openForgotModal);
-
-  var closeForgot = document.getElementById('closeForgotBtn');
-  if (closeForgot) closeForgot.addEventListener('click', closeForgotModal);
-
-  var forgotModal = document.getElementById('forgotModal');
-  if (forgotModal) {
-    forgotModal.addEventListener('click', function (e) {
-      if (e.target === forgotModal) closeForgotModal();
+  document.querySelectorAll('.tab-two').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const targetTab = tab.getAttribute('data-tab');
+      switchAuthTab(targetTab);
     });
-  }
+  });
 
-  var sendOtpEl = document.getElementById('sendOtpBtn');
-  if (sendOtpEl) sendOtpEl.addEventListener('click', sendOtp);
+  document.getElementById('loginBtn')?.addEventListener('click', handleLogin);
+  document.getElementById('registerBtn')?.addEventListener('click', handleRegister);
+  document.getElementById('resendVerifBtn')?.addEventListener('click', resendVerif);
+  document.getElementById('forgotBtn')?.addEventListener('click', openForgotModal);
+  document.getElementById('closeForgotBtn')?.addEventListener('click', closeForgotModal);
+  document.getElementById('forgotModal')?.addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeForgotModal();
+  });
+  document.getElementById('sendOtpBtn')?.addEventListener('click', sendOtp);
+  document.getElementById('verifyOtpBtn')?.addEventListener('click', verifyOtp);
+  document.getElementById('resendOtpBtn')?.addEventListener('click', resendOtp);
+  document.getElementById('resetPwdBtn')?.addEventListener('click', doResetPassword);
+  document.getElementById('loginPassword')?.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') handleLogin(e);
+  });
 
-  var verifyOtpEl = document.getElementById('verifyOtpBtn');
-  if (verifyOtpEl) verifyOtpEl.addEventListener('click', verifyOtp);
-
-  var resendOtpEl = document.getElementById('resendOtpBtn');
-  if (resendOtpEl) resendOtpEl.addEventListener('click', resendOtp);
-
-  var resetPwd = document.getElementById('resetPwdBtn');
-  if (resetPwd) resetPwd.addEventListener('click', doResetPassword);
-
-  var loginPassword = document.getElementById('loginPassword');
-  if (loginPassword) {
-    loginPassword.addEventListener('keypress', function (e) {
-      if (e.key === 'Enter') handleLogin(e);
-    });
-  }
-
-  console.log('✅ Aplikasi siap digunakan v25.0 - Khusus Papua (WIT)');
+  console.log('✅ Aplikasi siap digunakan v26.0 - Khusus Papua (WIT)');
 });
