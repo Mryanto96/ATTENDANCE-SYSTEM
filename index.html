@@ -22,14 +22,13 @@
                     </svg>
                 </div>
                 <h1>Absensi Digital</h1>
-                <p>SMP Negeri Pulau Tiga</p>
+                <p id="schoolName">SMP Negeri Pulau Tiga</p>
             </div>
 
-            <!-- TAB SWITCH -->
-            <div class="auth-tabs-two">
-                <button class="tab-two active" data-tab="login">Masuk</button>
-                <button class="tab-two" data-tab="register">Daftar</button>
-            </div>
+        <div class="auth-tabs-two">
+            <button class="tab-two active" data-tab="login" onclick="switchAuthTab('login')">Masuk</button>
+            <button class="tab-two" data-tab="register" onclick="switchAuthTab('register')">Daftar</button>
+        </div>
 
             <!-- FORM LOGIN -->
             <div id="loginForm" class="form-two active">
@@ -155,6 +154,7 @@
                         <span>Foto selfie terintegrasi</span>
                     </div>
                 </div>
+                </div>
             </div>
         </div>
     </div>
@@ -200,11 +200,6 @@
     </div>
 
     <script src="script.js"></script>
-    <script>
-        // ===== HALAMAN INDEX (LOGIN/REGISTER dengan TAB SWITCH) =====
-            loadSchoolName();
-            initSwapLayout();  // <-- Tambahkan baris ini
-    </script>
 </body>
 
 </html>

@@ -1,18 +1,15 @@
 // ============================================================
 // SISTEM ABSENSI DIGITAL - FRONTEND
-// Versi: 24.0 - KHUSUS PAPUA (WIT)
-// FIX: Dark Mode berfungsi di DOMContentLoaded
-// FIX: Tanggal dan jam sesuai WIT
-// FIX: Jadwal Kepsek menampilkan semua hari
+// Versi: 25.0 - KHUSUS PAPUA (WIT)
+// FIX: Hapus swap layout, hanya tab login/register
 // ============================================================
 
-const API_URL = "https://script.google.com/macros/s/AKfycbyx5A3o5GzcMD7kWrHnRhrmWvJjEHVHFbTBPMYPGwD5Fs-4bxy8Ejblqyemb4bxUPar/exec";
+const API_URL = "https://script.google.com/macros/s/s/AKfycbyUyLi9B8-cMZEyz9aGgjH3wqQj5Hf4-9SYYN2UdC_94lubN4wRTwveMd7yfb0gHgJw//exec";
 
 let currentUser = null;
 let isSubmitting = false;
 let otpTimer = null;
 let forgotEmailGlobal = '';
-let pendingBlockAction = null;
 
 // Camera & Location variables
 let mediaStream = null;
@@ -32,7 +29,6 @@ const DEFAULT_ADMIN = {
 
 // ==================== PAPUA TIME HELPER (WIT) ====================
 function getPapuaTime() {
-  // WIT = UTC+9
   const now = new Date();
   const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
   return new Date(utc + (3600000 * 9));
@@ -57,7 +53,6 @@ function updateClock() {
   const now = getPapuaTime();
   const dateEl = document.getElementById('dateStr');
   const timeEl = document.getElementById('timeStr');
-
   if (dateEl) {
     dateEl.textContent = now.toLocaleDateString('id-ID', {
       weekday: 'long',
@@ -115,6 +110,29 @@ function timeToMinutes(timeStr) {
   return hours * 60 + minutes;
 }
 
+// ==================== SWITCH TAB LOGIN/REGISTER ====================
+function switchAuthTab(tabName) {
+  // Update tab buttons
+  const tabs = document.querySelectorAll('.tab-two');
+  tabs.forEach(tab => {
+    tab.classList.remove('active');
+  });
+  const activeTab = document.querySelector(`.tab-two[data-tab="${tabName}"]`);
+  if (activeTab) activeTab.classList.add('active');
+
+  // Update forms
+  const loginForm = document.getElementById('loginForm');
+  const registerForm = document.getElementById('registerForm');
+
+  if (tabName === 'login') {
+    if (loginForm) loginForm.classList.add('active');
+    if (registerForm) registerForm.classList.remove('active');
+  } else {
+    if (loginForm) loginForm.classList.remove('active');
+    if (registerForm) registerForm.classList.add('active');
+  }
+}
+
 // ==================== DARK MODE ====================
 function initDarkMode() {
   const darkModeBtn = document.getElementById('darkModeBtn');
@@ -124,11 +142,9 @@ function initDarkMode() {
   const moonIcon = darkModeBtn.querySelector('.moon-icon');
   const toggleText = darkModeBtn.querySelector('.toggle-text');
 
-  // Cek preferensi yang tersimpan
   const savedMode = localStorage.getItem('darkMode');
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
 
-  // Set mode awal
   if (savedMode === 'enabled' || (!savedMode && prefersDark)) {
     document.body.classList.add('dark-mode');
     if (sunIcon) sunIcon.style.display = 'none';
@@ -141,10 +157,8 @@ function initDarkMode() {
     if (toggleText) toggleText.textContent = 'Dark';
   }
 
-  // Event listener untuk toggle
   darkModeBtn.addEventListener('click', function () {
     const isDark = document.body.classList.toggle('dark-mode');
-
     if (isDark) {
       localStorage.setItem('darkMode', 'enabled');
       if (sunIcon) sunIcon.style.display = 'none';
@@ -203,10 +217,8 @@ function showConfirmModal(title, message, onConfirm, onCancel) {
 
   const newCloseBtn = closeBtn.cloneNode(true);
   closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
-
   const newCancelBtn = cancelBtn.cloneNode(true);
   cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
-
   const newOkBtn = okBtn.cloneNode(true);
   okBtn.parentNode.replaceChild(newOkBtn, okBtn);
 
@@ -233,8 +245,6 @@ function apiCall(params) {
     }
     url += '&_=' + Date.now();
 
-    console.log('📡 JSONP Request:', url);
-
     const timeout = setTimeout(() => {
       cleanup();
       resolve({ status: 'error', message: 'Request timeout. Periksa koneksi internet Anda.' });
@@ -248,7 +258,6 @@ function apiCall(params) {
     }
 
     window[cbName] = function (data) {
-      console.log('✅ JSONP Response:', data);
       cleanup();
       resolve(data);
     };
@@ -257,7 +266,6 @@ function apiCall(params) {
     script.id = cbName;
     script.src = url;
     script.onerror = function () {
-      console.error('❌ JSONP Error:', url);
       cleanup();
       resolve({ status: 'error', message: 'Gagal terhubung ke server. Coba lagi.' });
     };
@@ -272,8 +280,6 @@ function apiCallPost(data) {
       resolve({ status: 'error', message: 'Request timeout. Periksa koneksi internet Anda.' });
     }, 30000);
 
-    console.log('📡 POST Request action:', data.action);
-
     fetch(API_URL, {
       method: 'POST',
       body: JSON.stringify(data),
@@ -282,12 +288,10 @@ function apiCallPost(data) {
       .then(res => res.json())
       .then(result => {
         clearTimeout(timeout);
-        console.log('✅ POST Response:', result);
         resolve(result);
       })
       .catch(err => {
         clearTimeout(timeout);
-        console.error('❌ POST Error:', err);
         resolve({ status: 'error', message: 'Gagal mengirim data. Pastikan koneksi stabil.' });
       });
   });
@@ -796,7 +800,7 @@ async function loadKepsekScheduleInfo() {
   const r = await apiCall({ action: 'getSettings' });
   if (r.status !== 'success') return;
   const s = r.data;
-  const el = document.getElementById('kepsekScheduleInfo');  // ✅ Sesuai dengan HTML
+  const el = document.getElementById('kepsekScheduleInfo');
   if (!el) return;
 
   const jadwalSeninRabu = {
@@ -969,7 +973,7 @@ async function loadHistory() {
       '</tr>'
     ).join('');
   } else {
-    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Tidak ada data untuk periode ini</td>';
+    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Tidak ada data untuk periode ini</td></tr>';
   }
 
   if (r.status === 'success' && r.data) {
@@ -1014,7 +1018,7 @@ async function loadDashboardStats() {
 // ==================== TEACHERS ====================
 async function loadAllTeachers() {
   const tbody = document.getElementById('teachersBody');
-  if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Memuat data...<tr>';
+  if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Memuat data...</td></tr>';
 
   const searchVal = document.getElementById('searchTeacher')?.value?.toLowerCase() || '';
   const roleFilter = document.getElementById('filterRole')?.value || 'all';
@@ -1022,7 +1026,7 @@ async function loadAllTeachers() {
 
   if (!tbody) return;
   if (r.status !== 'success' || !r.data || !r.data.length) {
-    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Belum ada data pengguna</td>';
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Belum ada data pengguna</td></tr>';
     return;
   }
 
@@ -1198,7 +1202,7 @@ async function saveAddTeacher() {
 // ==================== LOCATIONS ====================
 async function loadLocations() {
   const tbody = document.getElementById('locationsBody');
-  if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Memuat...</td>';
+  if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Memuat...</td></tr>';
 
   const r = await apiCall({ action: 'getLocations' });
   if (!tbody) return;
@@ -1213,7 +1217,7 @@ async function loadLocations() {
       '</tr>'
     ).join('');
   } else {
-    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Belum ada lokasi terdaftar</td>';
+    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Belum ada lokasi terdaftar</td></tr>';
   }
 }
 
@@ -1455,52 +1459,6 @@ function initMobileMenu() {
   }
 }
 
-// ==================== SWAP LAYOUT FUNCTION ====================
-let isSwapping = false;
-let swapTimeout = null;
-
-function initSwapLayout() {
-  const authContainer = document.getElementById('authContainer');
-  const illustrationSide = document.getElementById('illustrationSide');
-  const formSide = document.getElementById('formSide');
-
-  if (authContainer && illustrationSide) {
-    illustrationSide.addEventListener('click', function (e) {
-      if (isSwapping) return;
-      if (e.target.closest('button') || e.target.closest('input') || e.target.closest('select') || e.target.closest('a')) {
-        return;
-      }
-      if (authContainer.classList.contains('swapped')) return;
-
-      isSwapping = true;
-      authContainer.classList.add('swapped');
-
-      if (swapTimeout) clearTimeout(swapTimeout);
-      swapTimeout = setTimeout(() => {
-        isSwapping = false;
-      }, 700);
-    });
-  }
-
-  if (authContainer && formSide) {
-    formSide.addEventListener('click', function (e) {
-      if (isSwapping) return;
-      if (e.target.closest('button') || e.target.closest('input') || e.target.closest('select') || e.target.closest('.tab-two')) {
-        return;
-      }
-      if (!authContainer.classList.contains('swapped')) return;
-
-      isSwapping = true;
-      authContainer.classList.remove('swapped');
-
-      if (swapTimeout) clearTimeout(swapTimeout);
-      swapTimeout = setTimeout(() => {
-        isSwapping = false;
-      }, 700);
-    });
-  }
-}
-
 // ==================== NAVIGATION ====================
 function navigate(pageId) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -1581,16 +1539,11 @@ function populateYears() {
 
 // ==================== INITIALIZATION ====================
 document.addEventListener('DOMContentLoaded', function () {
-  console.log('🚀 Aplikasi dimulai v24.0 - KHUSUS PAPUA (WIT)');
-  console.log('📅 Jam Masuk: 07:00-08:30 WIT');
-  console.log('📅 Senin-Rabu Pulang: 12:00-12:15 WIT');
-  console.log('📅 Kamis-Jumat Pulang: 12:00 WIT');
+  console.log('🚀 Aplikasi dimulai v25.0 - KHUSUS PAPUA (WIT)');
 
-  // Update clock setiap detik
   updateClock();
   setInterval(updateClock, 1000);
 
-  // INIT DARK MODE (harus dipanggil)
   initDarkMode();
 
   var path = window.location.pathname;
@@ -1638,7 +1591,6 @@ document.addEventListener('DOMContentLoaded', function () {
     var changePwBtn = document.getElementById('changePwBtn');
     if (changePwBtn) changePwBtn.addEventListener('click', changePassword);
 
-    // Modal close buttons
     document.getElementById('closeAddModalBtn')?.addEventListener('click', () => closeModal('addTeacherModal'));
     document.getElementById('closeEditModalBtn')?.addEventListener('click', () => closeModal('editTeacherModal'));
     document.getElementById('closePwModalBtn')?.addEventListener('click', () => closeModal('changePwModal'));
@@ -1702,14 +1654,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // ===== HALAMAN INDEX (LOGIN/REGISTER) =====
   loadSchoolName();
-  initSwapLayout();
 
-  document.querySelectorAll('.tab-two').forEach(tab => {
-    tab.addEventListener('click', function () {
-      const targetTab = this.getAttribute('data-tab');
-      switchAuthTab(targetTab);
-    });
-  });
+  // Setup tab switches
+  const loginTab = document.querySelector('.tab-two[data-tab="login"]');
+  const registerTab = document.querySelector('.tab-two[data-tab="register"]');
+
+  if (loginTab) loginTab.addEventListener('click', function () { switchAuthTab('login'); });
+  if (registerTab) registerTab.addEventListener('click', function () { switchAuthTab('register'); });
 
   var loginBtn = document.getElementById('loginBtn');
   if (loginBtn) loginBtn.addEventListener('click', handleLogin);
@@ -1752,5 +1703,5 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  console.log('✅ Aplikasi siap digunakan v24.0 - Khusus Papua (WIT)');
+  console.log('✅ Aplikasi siap digunakan v25.0 - Khusus Papua (WIT)');
 });
