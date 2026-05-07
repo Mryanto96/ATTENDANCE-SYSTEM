@@ -4,7 +4,7 @@
 // FIX: Hapus swap layout, hanya tab login/register
 // ============================================================
 
-const API_URL = "https://script.google.com/macros/s/s/AKfycbyUyLi9B8-cMZEyz9aGgjH3wqQj5Hf4-9SYYN2UdC_94lubN4wRTwveMd7yfb0gHgJw//exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbzadMLlaD66Sj8LbRSg1na-I4xwCWGI-QmrwtCmLOpnGpt3HMmF5Mx7nZGY_L2khsjG/exec";
 
 let currentUser = null;
 let isSubmitting = false;
