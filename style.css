@@ -74,6 +74,124 @@ body {
 }
 
 /* ============================================ */
+/* FINGERPRINT SCAN ANIMATION                   */
+/* ============================================ */
+
+.fingerprint-scan {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 20px auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.fingerprint-icon {
+    color: var(--accent);
+    animation: fingerprintPulse 2s ease-in-out infinite;
+}
+
+.fingerprint-icon svg {
+    width: 56px;
+    height: 56px;
+    stroke: url(#gradient);
+}
+
+.scan-line {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    animation: scanMove 2s ease-in-out infinite;
+    border-radius: 2px;
+}
+
+.scan-dots {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.scan-dots span {
+    width: 4px;
+    height: 4px;
+    background: var(--accent);
+    border-radius: 50%;
+    opacity: 0.3;
+    animation: dotBlink 1.5s ease-in-out infinite;
+}
+
+.scan-dots span:nth-child(1) {
+    animation-delay: 0s;
+}
+
+.scan-dots span:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.scan-dots span:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+.scan-dots span:nth-child(4) {
+    animation-delay: 0.6s;
+}
+
+.scan-dots span:nth-child(5) {
+    animation-delay: 0.8s;
+}
+
+@keyframes fingerprintPulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    50% {
+        transform: scale(1.05);
+        opacity: 0.85;
+    }
+}
+
+@keyframes scanMove {
+    0% {
+        bottom: 0;
+        opacity: 0;
+    }
+
+    50% {
+        bottom: 70px;
+        opacity: 1;
+    }
+
+    100% {
+        bottom: 0;
+        opacity: 0;
+    }
+}
+
+@keyframes dotBlink {
+
+    0%,
+    100% {
+        opacity: 0.3;
+        transform: scale(1);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scale(1.5);
+    }
+}
+
+/* ============================================ */
 /* AUTH TWO-COLUMN LAYOUT (LOGIN/SIGNUP)       */
 /* ============================================ */
 
@@ -637,20 +755,14 @@ body {
     flex-shrink: 0;
 }
 
-/* PERUBAHAN DI SINI: hapus nowrap, tambahkan wrap */
 .user-chip .user-name {
     font-size: 13px;
     font-weight: 700;
     white-space: normal;
-    /* Ganti: nowrap → normal (bisa pindah baris) */
     word-wrap: break-word;
-    /* Paksa kata panjang pindah baris */
     word-break: break-word;
-    /* Potong kata jika perlu */
     line-height: 1.5;
-    /* Jarak antar baris */
     max-width: 140px;
-    /* Maksimal lebar sebelum wrap */
     color: var(--text);
 }
 
@@ -1359,7 +1471,7 @@ tr:hover td {
 }
 
 /* ============================================ */
-/* MODAL                                        */
+/* MODAL - UNIVERSAL                            */
 /* ============================================ */
 
 .modal-overlay {
@@ -1397,7 +1509,7 @@ tr:hover td {
     margin-bottom: 20px;
 }
 
-.modal-title {
+.modal-header h3 {
     font-size: 18px;
     font-weight: 800;
     color: #1a1d2e;
@@ -1423,6 +1535,21 @@ tr:hover td {
     border-color: #d1d5e8;
 }
 
+.modal-footer {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+}
+
+.modal-footer .btn-secondary,
+.modal-footer .btn-primary {
+    padding: 8px 20px;
+}
+
+/* Steps for forgot password */
 .step {
     display: none;
 }
@@ -1451,126 +1578,26 @@ tr:hover td {
 }
 
 /* ============================================ */
-/* MODAL KONFIRMASI                             */
+/* MODAL KONFIRMASI (UNIVERSAL)                 */
 /* ============================================ */
 
 #confirmModal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
     z-index: 9999;
-    opacity: 0;
-    visibility: hidden;
-    transition: all 0.25s ease;
 }
 
-#confirmModal.open {
-    opacity: 1;
-    visibility: visible;
-}
-
-#confirmModal .modal-container {
-    background: white;
-    border-radius: 24px;
+#confirmModal .modal-box {
     max-width: 380px;
-    width: 90%;
-    box-shadow: 0 20px 35px -10px rgba(0, 0, 0, 0.3);
-    animation: modalPop 0.25s ease;
-}
-
-@keyframes modalPop {
-    from {
-        transform: scale(0.9);
-        opacity: 0;
-    }
-
-    to {
-        transform: scale(1);
-        opacity: 1;
-    }
-}
-
-#confirmModal .modal-header {
-    padding: 18px 22px 8px 22px;
-    border-bottom: 1px solid #eef2ff;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-#confirmModal .modal-header h3 {
-    margin: 0;
-    font-size: 1.2rem;
-    font-weight: 600;
-    color: #1f2937;
-}
-
-#confirmModal .modal-header .close-modal {
-    background: none;
-    border: none;
-    font-size: 26px;
-    cursor: pointer;
-    color: #9ca3af;
-    transition: color 0.2s;
-}
-
-#confirmModal .modal-header .close-modal:hover {
-    color: #ef4444;
+    text-align: center;
 }
 
 #confirmModal .modal-body {
-    padding: 20px 22px;
+    text-align: center;
+    padding: 20px 0;
 }
 
 #confirmModal .modal-body p {
-    margin: 0;
-    font-size: 1rem;
+    font-size: 15px;
     color: #374151;
-    line-height: 1.5;
-}
-
-#confirmModal .modal-footer {
-    padding: 12px 22px 20px 22px;
-    display: flex;
-    gap: 12px;
-    justify-content: flex-end;
-    border-top: 1px solid #eef2ff;
-}
-
-#confirmModal .modal-footer .btn-secondary {
-    padding: 8px 20px;
-    background: #f3f4f6;
-    border: none;
-    border-radius: 12px;
-    font-weight: 500;
-    cursor: pointer;
-    color: #4b5563;
-    font-size: 0.9rem;
-}
-
-#confirmModal .modal-footer .btn-secondary:hover {
-    background: #e5e7eb;
-}
-
-#confirmModal .modal-footer .btn-primary {
-    padding: 8px 20px;
-    background: #dc2626;
-    border: none;
-    border-radius: 12px;
-    font-weight: 500;
-    cursor: pointer;
-    color: white;
-    font-size: 0.9rem;
-}
-
-#confirmModal .modal-footer .btn-primary:hover {
-    background: #b91c1c;
 }
 
 /* ============================================ */
@@ -1650,8 +1677,7 @@ body.dark-mode .main {
 
 body.dark-mode .card,
 body.dark-mode .stat-card,
-body.dark-mode .modal-box,
-body.dark-mode .modal-container {
+body.dark-mode .modal-box {
     background: var(--card-bg);
     border-color: var(--border-color);
 }
@@ -1764,15 +1790,6 @@ body.dark-mode .badge-info {
 
 body.dark-mode .empty-state {
     color: var(--text-secondary);
-}
-
-body.dark-mode .modal-overlay .modal-box,
-body.dark-mode .modal-overlay .modal-container {
-    background: var(--card-bg);
-}
-
-body.dark-mode .modal-header {
-    border-color: var(--border-color);
 }
 
 body.dark-mode .modal-header h3 {

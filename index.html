@@ -16,19 +16,34 @@
         <!-- SISI KIRI: FORM (LOGIN & REGISTER) -->
         <div class="auth-form-side" id="formSide">
             <div class="auth-brand">
-                <div class="auth-logo">
-                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5">
-                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                    </svg>
+                <!-- FINGERPRINT ANIMASI SCAN -->
+                <div class="fingerprint-scan" id="fingerprintScan">
+                    <div class="fingerprint-icon">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="1.5">
+                            <path d="M12 2a9 9 0 0 0-9 9c0 2.5 1 4.7 2.6 6.3" />
+                            <path d="M12 2a9 9 0 0 1 9 9c0 2.5-1 4.7-2.6 6.3" />
+                            <path d="M5.5 18.5A11 11 0 0 0 12 22a11 11 0 0 0 6.5-3.5" />
+                            <path d="M8 12a4 4 0 0 1 4-4 4 4 0 0 1 4 4v2a6 6 0 0 1-6 6 6 6 0 0 1-6-6v-2" />
+                            <circle cx="12" cy="12" r="2" />
+                            <path d="M12 22v-4" />
+                            <path d="M17 17.5A7 7 0 0 0 19 12" />
+                            <path d="M7 17.5A7 7 0 0 1 5 12" />
+                        </svg>
+                    </div>
+                    <div class="scan-line"></div>
+                    <div class="scan-dots">
+                        <span></span><span></span><span></span><span></span><span></span>
+                    </div>
                 </div>
                 <h1>Absensi Digital</h1>
                 <p id="schoolName">SMP Negeri Pulau Tiga</p>
             </div>
 
-        <div class="auth-tabs-two">
-            <button class="tab-two active" data-tab="login" onclick="switchAuthTab('login')">Masuk</button>
-            <button class="tab-two" data-tab="register" onclick="switchAuthTab('register')">Daftar</button>
-        </div>
+            <div class="auth-tabs-two">
+                <button class="tab-two active" data-tab="login">Masuk</button>
+                <button class="tab-two" data-tab="register">Daftar</button>
+            </div>
 
             <!-- FORM LOGIN -->
             <div id="loginForm" class="form-two active">
@@ -123,14 +138,14 @@
             </div>
         </div>
 
-        <!-- SISI KANAN: ILUSTRASI / VEKTOR (KLIK UNTUK SWAP POSISI) -->
+        <!-- SISI KANAN: ILUSTRASI / VEKTOR -->
         <div class="auth-illustration-side" id="illustrationSide"
             style="background-image: url('https://cdna.artstation.com/p/assets/images/images/027/682/158/original/liz-gross-signup.gif?1592246526'); background-size: cover; background-position: center; position: relative; cursor: pointer;">
             <div class="illustration-overlay"></div>
             <div class="illustration-content">
                 <h2>Welcome!</h2>
-                <p>Sistem Absensi Digital berbasis lokasi dan foto selfie untuk memudahkan pencatatan kehadiran guru dan
-                    staf sekolah.</p>
+                <p>Sistem Absensi Digital berbasis foto selfie untuk memudahkan pencatatan kehadiran guru dan staf
+                    sekolah.</p>
                 <div class="feature-list">
                     <div class="feature-item">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
@@ -141,19 +156,17 @@
                     </div>
                     <div class="feature-item">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                            <circle cx="12" cy="12" r="3" />
-                        </svg>
-                        <span>Validasi lokasi GPS</span>
-                    </div>
-                    <div class="feature-item">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
                             <rect x="2" y="2" width="20" height="20" rx="2.18" />
                             <path d="M7 2v20M17 2v20M2 12h20M2 7h5M2 17h5M17 17h5M17 7h5" />
                         </svg>
                         <span>Foto selfie terintegrasi</span>
                     </div>
-                </div>
+                    <div class="feature-item">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                        </svg>
+                        <span>Laporan otomatis</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -164,7 +177,7 @@
         <div class="modal-box">
             <div class="modal-header">
                 <span class="modal-title">Reset Password</span>
-                <button class="close-modal" id="closeForgotBtn">&times;</button>
+                <button class="close-modal" data-modal="forgotModal">&times;</button>
             </div>
 
             <div id="step1" class="step active">
@@ -196,6 +209,23 @@
             </div>
 
             <div class="msg" id="forgotMsg"></div>
+        </div>
+    </div>
+
+    <!-- MODAL KONFIRMASI UNIVERSAL -->
+    <div class="modal-overlay" id="confirmModal">
+        <div class="modal-box" style="max-width: 380px;">
+            <div class="modal-header">
+                <h3 id="confirmTitle">Konfirmasi</h3>
+                <button class="close-modal" data-modal="confirmModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="confirmMessage">Apakah Anda yakin?</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="confirmCancelBtn">Batal</button>
+                <button class="btn-primary" id="confirmOkBtn">Ya, Lanjutkan</button>
+            </div>
         </div>
     </div>
 

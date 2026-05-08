@@ -4,7 +4,7 @@
 // FITUR BARU: Laporan Per Guru, Preview, Cetak PDF, Kirim Email
 // ============================================================
 
-const API_URL = "https://script.google.com/macros/s/AKfycbx6GdsM208DG8gIG5N5ocUka-imf32RthlfHoPqeQg42FZgYTERwBwXdSpcJzNSCR3geg/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbz0vfEEHdTnNyZniOvS5ArC7vakppAc3QDjdFmxLzn7NL_25xWZBBAAq4ox47a7lTDOfg/exec";
 
 let currentUser = null;
 let isSubmitting = false;
