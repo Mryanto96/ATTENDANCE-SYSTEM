@@ -1,6 +1,7 @@
 // ============================================================
 // SISTEM ABSENSI DIGITAL - FRONTEND
-// Versi: 26.1 - KHUSUS PAPUA (WIT)
+// Versi: 27.0 - KHUSUS PAPUA (WIT)
+// FIX: Waktu Papua akurat (UTC+9)
 // FIX: Close modal reset password
 // ============================================================
 
@@ -27,11 +28,15 @@ const DEFAULT_ADMIN = {
   status: 'Verified'
 };
 
-// ==================== PAPUA TIME HELPER (WIT) ====================
+// ==================== PAPUA TIME HELPER (WIT) - FIXED ====================
+// WIT = UTC+9 (Asia/Jayapura)
+// Menggunakan method yang PALING AKURAT dan TIDAK MEMBUAT ERROR
 function getPapuaTime() {
+  // Method paling sederhana dan akurat untuk WIT (UTC+9)
   const now = new Date();
-  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-  return new Date(utc + (3600000 * 9));
+  // Hitung offset UTC+9 dalam milliseconds
+  const witTime = new Date(now.getTime() + (9 * 60 * 60 * 1000) + (now.getTimezoneOffset() * 60 * 1000));
+  return witTime;
 }
 
 function formatPapuaTime(date, format) {
@@ -53,22 +58,25 @@ function updateClock() {
   const now = getPapuaTime();
   const dateEl = document.getElementById('dateStr');
   const timeEl = document.getElementById('timeStr');
+
   if (dateEl) {
-    dateEl.textContent = now.toLocaleDateString('id-ID', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-      timeZone: 'Asia/Jayapura'
-    });
+    // Format tanggal dengan manual untuk memastikan akurasi
+    const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+    const dayName = days[now.getDay()];
+    const dayNum = now.getDate();
+    const monthName = months[now.getMonth()];
+    const yearNum = now.getFullYear();
+
+    dateEl.textContent = dayName + ', ' + dayNum + ' ' + monthName + ' ' + yearNum;
   }
+
   if (timeEl) {
-    timeEl.textContent = now.toLocaleTimeString('id-ID', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      timeZone: 'Asia/Jayapura'
-    });
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    timeEl.textContent = hours + ':' + minutes + ':' + seconds;
   }
 }
 
@@ -179,20 +187,20 @@ function showConfirmModal(title, message, onConfirm, onCancel) {
     modal.id = 'confirmModal';
     modal.className = 'modal-overlay';
     modal.innerHTML = `
-      <div class="modal-container" style="max-width:400px">
-        <div class="modal-header">
-          <h3 id="confirmTitle">Konfirmasi</h3>
-          <button class="close-modal">&times;</button>
-        </div>
-        <div class="modal-body">
-          <p id="confirmMessage">Apakah Anda yakin?</p>
-        </div>
-        <div class="modal-footer" style="display:flex;gap:10px;justify-content:flex-end">
-          <button id="confirmCancelBtn" class="btn-secondary">Batal</button>
-          <button id="confirmOkBtn" class="btn-primary">Ya, Lanjutkan</button>
-        </div>
-      </div>
-    `;
+            <div class="modal-container" style="max-width:400px">
+                <div class="modal-header">
+                    <h3 id="confirmTitle">Konfirmasi</h3>
+                    <button class="close-modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p id="confirmMessage">Apakah Anda yakin?</p>
+                </div>
+                <div class="modal-footer" style="display:flex;gap:10px;justify-content:flex-end">
+                    <button id="confirmCancelBtn" class="btn-secondary">Batal</button>
+                    <button id="confirmOkBtn" class="btn-primary">Ya, Lanjutkan</button>
+                </div>
+            </div>
+        `;
     document.body.appendChild(modal);
   }
 
@@ -463,17 +471,30 @@ async function resendVerif() {
 
 // ==================== OTP / FORGOT PASSWORD ====================
 function openForgotModal() {
-  document.getElementById('step1').classList.add('active');
-  document.getElementById('step2').classList.remove('active');
-  document.getElementById('step3').classList.remove('active');
-  document.getElementById('forgotEmail').value = '';
-  document.getElementById('otpInput').value = '';
-  document.getElementById('newPwd').value = '';
-  document.getElementById('confirmPwd').value = '';
+  const step1 = document.getElementById('step1');
+  const step2 = document.getElementById('step2');
+  const step3 = document.getElementById('step3');
+
+  if (step1) step1.classList.add('active');
+  if (step2) step2.classList.remove('active');
+  if (step3) step3.classList.remove('active');
+
+  const forgotEmail = document.getElementById('forgotEmail');
+  const otpInput = document.getElementById('otpInput');
+  const newPwd = document.getElementById('newPwd');
+  const confirmPwd = document.getElementById('confirmPwd');
+
+  if (forgotEmail) forgotEmail.value = '';
+  if (otpInput) otpInput.value = '';
+  if (newPwd) newPwd.value = '';
+  if (confirmPwd) confirmPwd.value = '';
+
   const msgEl = document.getElementById('forgotMsg');
   if (msgEl) { msgEl.className = 'msg'; msgEl.textContent = ''; }
   if (otpTimer) clearInterval(otpTimer);
-  document.getElementById('forgotModal').classList.add('open');
+
+  const modal = document.getElementById('forgotModal');
+  if (modal) modal.classList.add('open');
 }
 
 function closeForgotModal() {
@@ -488,10 +509,16 @@ function closeForgotModal() {
 }
 
 function goStep(stepName) {
-  document.getElementById('step1').classList.remove('active');
-  document.getElementById('step2').classList.remove('active');
-  document.getElementById('step3').classList.remove('active');
-  document.getElementById(stepName).classList.add('active');
+  const step1 = document.getElementById('step1');
+  const step2 = document.getElementById('step2');
+  const step3 = document.getElementById('step3');
+
+  if (step1) step1.classList.remove('active');
+  if (step2) step2.classList.remove('active');
+  if (step3) step3.classList.remove('active');
+
+  const targetStep = document.getElementById(stepName);
+  if (targetStep) targetStep.classList.add('active');
 }
 
 function startOtpCountdown() {
@@ -590,7 +617,7 @@ async function doResetPassword() {
 // ==================== SCHOOL NAME ====================
 async function loadSchoolName() {
   const r = await apiCall({ action: 'getSettings' });
-  if (r.status === 'success' && r.data?.school_name?.value) {
+  if (r.status === 'success' && r.data && r.data.school_name && r.data.school_name.value) {
     const el = document.getElementById('schoolName');
     if (el) el.textContent = r.data.school_name.value;
   }
@@ -786,17 +813,17 @@ async function loadAdminScheduleInfo() {
   };
 
   el.innerHTML = `
-    <div class="info-box info">
-      <strong>📅 Senin – Rabu</strong><br>
-      🟢 Masuk: ${jadwalSeninRabu.masukMulai} – ${jadwalSeninRabu.masukSelesai} WIT<br>
-      🔴 Pulang: ${jadwalSeninRabu.pulangMulai} – ${jadwalSeninRabu.pulangSelesai} WIT
-    </div>
-    <div class="info-box info" style="margin-top: 10px;">
-      <strong>📅 Kamis – Jumat</strong><br>
-      🟢 Masuk: ${jadwalKamisJumat.masukMulai} – ${jadwalKamisJumat.masukSelesai} WIT<br>
-      🔴 Pulang: ${jadwalKamisJumat.pulangMulai} – ${jadwalKamisJumat.pulangSelesai} WIT
-    </div>
-  `;
+        <div class="info-box info">
+            <strong>📅 Senin – Rabu</strong><br>
+            🟢 Masuk: ${jadwalSeninRabu.masukMulai} – ${jadwalSeninRabu.masukSelesai} WIT<br>
+            🔴 Pulang: ${jadwalSeninRabu.pulangMulai} – ${jadwalSeninRabu.pulangSelesai} WIT
+        </div>
+        <div class="info-box info" style="margin-top: 10px;">
+            <strong>📅 Kamis – Jumat</strong><br>
+            🟢 Masuk: ${jadwalKamisJumat.masukMulai} – ${jadwalKamisJumat.masukSelesai} WIT<br>
+            🔴 Pulang: ${jadwalKamisJumat.pulangMulai} – ${jadwalKamisJumat.pulangSelesai} WIT
+        </div>
+    `;
 }
 
 async function loadKepsekScheduleInfo() {
@@ -821,17 +848,17 @@ async function loadKepsekScheduleInfo() {
   };
 
   el.innerHTML = `
-    <div class="info-box info">
-      <strong>📅 Senin – Rabu</strong><br>
-      🟢 Masuk: ${jadwalSeninRabu.masukMulai} – ${jadwalSeninRabu.masukSelesai} WIT<br>
-      🔴 Pulang: ${jadwalSeninRabu.pulangMulai} – ${jadwalSeninRabu.pulangSelesai} WIT
-    </div>
-    <div class="info-box info" style="margin-top: 10px;">
-      <strong>📅 Kamis – Jumat</strong><br>
-      🟢 Masuk: ${jadwalKamisJumat.masukMulai} – ${jadwalKamisJumat.masukSelesai} WIT<br>
-      🔴 Pulang: ${jadwalKamisJumat.pulangMulai} – ${jadwalKamisJumat.pulangSelesai} WIT
-    </div>
-  `;
+        <div class="info-box info">
+            <strong>📅 Senin – Rabu</strong><br>
+            🟢 Masuk: ${jadwalSeninRabu.masukMulai} – ${jadwalSeninRabu.masukSelesai} WIT<br>
+            🔴 Pulang: ${jadwalSeninRabu.pulangMulai} – ${jadwalSeninRabu.pulangSelesai} WIT
+        </div>
+        <div class="info-box info" style="margin-top: 10px;">
+            <strong>📅 Kamis – Jumat</strong><br>
+            🟢 Masuk: ${jadwalKamisJumat.masukMulai} – ${jadwalKamisJumat.masukSelesai} WIT<br>
+            🔴 Pulang: ${jadwalKamisJumat.pulangMulai} – ${jadwalKamisJumat.pulangSelesai} WIT
+        </div>
+    `;
 }
 
 async function loadScheduleInfo() {
@@ -1090,66 +1117,65 @@ async function previewTeacherReport() {
     return;
   }
 
-  const teacherName = document.getElementById('previewTeacher').options[document.getElementById('previewTeacher').selectedIndex]?.text.split(' (')[0] || email;
+  const previewSelect = document.getElementById('previewTeacher');
+  const teacherName = previewSelect?.options[previewSelect.selectedIndex]?.text.split(' (')[0] || email;
   const monthNames = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
   const monthName = monthNames[parseInt(month)] || month;
 
   let html = `
-    <div style="margin-top: 20px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 16px;">
-        <h4 style="margin: 0;">📋 Laporan Absensi Guru</h4>
-        <button class="btn-secondary btn-sm" onclick="printPreviewReport()">🖨️ Cetak / PDF</button>
-      </div>
-      <p><strong>Nama Guru:</strong> ${teacherName}</p>
-      <p><strong>Email:</strong> ${email}</p>
-      <p><strong>Periode:</strong> ${monthName} ${year}</p>
-      <div class="table-wrap">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>No</th>
-              <th>Tanggal</th>
-              <th>Check In</th>
-              <th>Check Out</th>
-              <th>Lokasi</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-  `;
+        <div style="margin-top: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 16px;">
+                <h4 style="margin: 0;">📋 Laporan Absensi Guru</h4>
+                <button class="btn-secondary btn-sm" onclick="printPreviewReport()">🖨️ Cetak / PDF</button>
+            </div>
+            <p><strong>Nama Guru:</strong> ${teacherName}</p>
+            <p><strong>Email:</strong> ${email}</p>
+            <p><strong>Periode:</strong> ${monthName} ${year}</p>
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>Tanggal</th>
+                            <th>Check In</th>
+                            <th>Check Out</th>
+                            <th>Lokasi</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+    `;
 
   if (r.data.length === 0) {
     html += `<tr><td colspan="6" class="empty-state">Belum ada data absensi bulan ini</td></tr>`;
   } else {
     r.data.forEach((item, i) => {
       html += `
-        <tr>
-          <td>${i + 1}</td>
-          <td>${formatDate(item.tanggal)}</td>
-          <td>${item.checkIn}</td>
-          <td>${item.checkOut}</td>
-          <td>${item.lokasi}</td>
-          <td><span class="badge badge-success">${item.status}</span></td>
-        </tr>
-      `;
+                        <tr>
+                            <td>${i + 1}</td>
+                            <td>${formatDate(item.tanggal)}</td>
+                            <td>${item.checkIn}</td>
+                            <td>${item.checkOut}</td>
+                            <td>${item.lokasi}</td>
+                            <td><span class="badge badge-success">${item.status}</span></td>
+                        </tr>
+                    `;
     });
   }
 
   html += `
-          </tbody>
-        </table>
-      </div>
-      <p style="color: var(--text2); font-size: 11px; margin-top: 12px;">Dicetak: ${new Date().toLocaleString()}</p>
-    </div>
-  `;
+                    </tbody>
+                </table>
+            </div>
+            <p style="color: var(--text2); font-size: 11px; margin-top: 12px;">Dicetak: ${new Date().toLocaleString()}</p>
+        </div>
+    `;
 
   const previewContainer = document.getElementById('previewContainer');
   const previewContent = document.getElementById('previewContent');
   if (previewContainer && previewContent) {
     previewContent.innerHTML = html;
     previewContainer.style.display = 'block';
-
-    // Simpan data untuk print
     window.previewData = { html: previewContent.innerHTML, teacherName, email, monthName, year };
   }
 }
@@ -1159,42 +1185,42 @@ function printPreviewReport() {
   if (!window.previewData) return;
 
   const printHtml = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>Laporan ${window.previewData.teacherName} - ${window.previewData.monthName} ${window.previewData.year}</title>
-      <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Times New Roman', Arial, sans-serif; padding: 20px; background: white; }
-        h1 { color: #1a1a2e; text-align: center; margin-bottom: 20px; }
-        .info { margin-bottom: 20px; }
-        .info p { margin: 5px 0; }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th, td { border: 1px solid #333; padding: 8px; text-align: left; }
-        th { background: #1a1a2e; color: white; }
-        .footer { margin-top: 20px; font-size: 11px; color: #666; text-align: center; }
-        @media print {
-          body { padding: 0; }
-          .no-print { display: none; }
-          button { display: none; }
-        }
-      </style>
-    </head>
-    <body>
-      <button class="no-print" onclick="window.print()" style="margin-bottom: 20px; padding: 8px 16px; cursor: pointer;">🖨️ Cetak / Simpan PDF</button>
-      <h1>📋 Laporan Absensi Guru</h1>
-      <div class="info">
-        <p><strong>Nama Guru:</strong> ${window.previewData.teacherName}</p>
-        <p><strong>Email:</strong> ${window.previewData.email}</p>
-        <p><strong>Periode:</strong> ${window.previewData.monthName} ${window.previewData.year}</p>
-      </div>
-      ${window.previewData.html}
-      <div class="footer">
-        <p>Dicetak otomatis dari Sistem Absensi Digital | ${new Date().toLocaleString()}</p>
-      </div>
-    </body>
-    </html>
-  `;
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Laporan ${window.previewData.teacherName} - ${window.previewData.monthName} ${window.previewData.year}</title>
+            <style>
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body { font-family: 'Times New Roman', Arial, sans-serif; padding: 20px; background: white; }
+                h1 { color: #1a1a2e; text-align: center; margin-bottom: 20px; }
+                .info { margin-bottom: 20px; }
+                .info p { margin: 5px 0; }
+                table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+                th, td { border: 1px solid #333; padding: 8px; text-align: left; }
+                th { background: #1a1a2e; color: white; }
+                .footer { margin-top: 20px; font-size: 11px; color: #666; text-align: center; }
+                @media print {
+                    body { padding: 0; }
+                    .no-print { display: none; }
+                    button { display: none; }
+                }
+            </style>
+        </head>
+        <body>
+            <button class="no-print" onclick="window.print()" style="margin-bottom: 20px; padding: 8px 16px; cursor: pointer;">🖨️ Cetak / Simpan PDF</button>
+            <h1>📋 Laporan Absensi Guru</h1>
+            <div class="info">
+                <p><strong>Nama Guru:</strong> ${window.previewData.teacherName}</p>
+                <p><strong>Email:</strong> ${window.previewData.email}</p>
+                <p><strong>Periode:</strong> ${window.previewData.monthName} ${window.previewData.year}</p>
+            </div>
+            ${window.previewData.html}
+            <div class="footer">
+                <p>Dicetak otomatis dari Sistem Absensi Digital | ${new Date().toLocaleString()}</p>
+            </div>
+        </body>
+        </html>
+    `;
 
   const printWindow = window.open();
   printWindow.document.write(printHtml);
@@ -1249,79 +1275,80 @@ async function printTeacherReport() {
     return;
   }
 
-  const teacherName = document.getElementById('selectedTeacher').options[document.getElementById('selectedTeacher').selectedIndex]?.text.split(' (')[0] || email;
+  const selectedSelect = document.getElementById('selectedTeacher');
+  const teacherName = selectedSelect?.options[selectedSelect.selectedIndex]?.text.split(' (')[0] || email;
   const monthNames = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
   const monthName = monthNames[parseInt(month)] || month;
 
   let html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>Laporan ${teacherName} - ${monthName} ${year}</title>
-      <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Times New Roman', Arial, sans-serif; padding: 20px; background: white; }
-        h1 { color: #1a1a2e; text-align: center; margin-bottom: 20px; }
-        .info { margin-bottom: 20px; }
-        .info p { margin: 5px 0; }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th, td { border: 1px solid #333; padding: 8px; text-align: left; }
-        th { background: #1a1a2e; color: white; }
-        .footer { margin-top: 20px; font-size: 11px; color: #666; text-align: center; }
-        @media print {
-          body { padding: 0; }
-          .no-print { display: none; }
-        }
-      </style>
-    </head>
-    <body>
-      <button class="no-print" onclick="window.print()" style="margin-bottom: 20px; padding: 8px 16px; cursor: pointer;">🖨️ Cetak / Simpan PDF</button>
-      <h1>📋 Laporan Absensi Guru</h1>
-      <div class="info">
-        <p><strong>Nama Guru:</strong> ${teacherName}</p>
-        <p><strong>Email:</strong> ${email}</p>
-        <p><strong>Periode:</strong> ${monthName} ${year}</p>
-      </div>
-      <table>
-        <thead>
-          <tr>
-            <th>No</th>
-            <th>Tanggal</th>
-            <th>Check In</th>
-            <th>Check Out</th>
-            <th>Lokasi</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-  `;
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Laporan ${teacherName} - ${monthName} ${year}</title>
+            <style>
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body { font-family: 'Times New Roman', Arial, sans-serif; padding: 20px; background: white; }
+                h1 { color: #1a1a2e; text-align: center; margin-bottom: 20px; }
+                .info { margin-bottom: 20px; }
+                .info p { margin: 5px 0; }
+                table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+                th, td { border: 1px solid #333; padding: 8px; text-align: left; }
+                th { background: #1a1a2e; color: white; }
+                .footer { margin-top: 20px; font-size: 11px; color: #666; text-align: center; }
+                @media print {
+                    body { padding: 0; }
+                    .no-print { display: none; }
+                }
+            </style>
+        </head>
+        <body>
+            <button class="no-print" onclick="window.print()" style="margin-bottom: 20px; padding: 8px 16px; cursor: pointer;">🖨️ Cetak / Simpan PDF</button>
+            <h1>📋 Laporan Absensi Guru</h1>
+            <div class="info">
+                <p><strong>Nama Guru:</strong> ${teacherName}</p>
+                <p><strong>Email:</strong> ${email}</p>
+                <p><strong>Periode:</strong> ${monthName} ${year}</p>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>No</th>
+                        <th>Tanggal</th>
+                        <th>Check In</th>
+                        <th>Check Out</th>
+                        <th>Lokasi</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
 
   if (r.data.length === 0) {
     html += `<tr><td colspan="6" style="text-align: center;">Belum ada data absensi bulan ini</td></tr>`;
   } else {
     r.data.forEach((item, i) => {
       html += `
-        <tr>
-          <td>${i + 1}</td>
-          <td>${formatDate(item.tanggal)}</td>
-          <td>${item.checkIn}</td>
-          <td>${item.checkOut}</td>
-          <td>${item.lokasi}</td>
-          <td>${item.status}</td>
-        </tr>
-      `;
+                    <tr>
+                        <td>${i + 1}</td>
+                        <td>${formatDate(item.tanggal)}</td>
+                        <td>${item.checkIn}</td>
+                        <td>${item.checkOut}</td>
+                        <td>${item.lokasi}</td>
+                        <td>${item.status}</td>
+                    </tr>
+                `;
     });
   }
 
   html += `
-        </tbody>
-      </table>
-      <div class="footer">
-        <p>Dicetak otomatis dari Sistem Absensi Digital | ${new Date().toLocaleString()}</p>
-      </div>
-    </body>
-    </html>
-  `;
+                </tbody>
+            </table>
+            <div class="footer">
+                <p>Dicetak otomatis dari Sistem Absensi Digital | ${new Date().toLocaleString()}</p>
+            </div>
+        </body>
+        </html>
+    `;
 
   const printWindow = window.open();
   printWindow.document.write(html);
@@ -1360,33 +1387,20 @@ window.confirmToggleBlock = function (email, currentStatus) {
   showConfirmModal(title, message, async function () {
     const blocked = !isBlocked;
     const r = await apiCall({ action: 'blockUser', email, blocked: blocked ? 'true' : 'false' });
+    const msgEl = document.getElementById('setMsg');
+    if (msgEl) {
+      msgEl.className = 'msg ' + (r.status === 'success' ? 'success' : 'error') + ' show';
+      msgEl.textContent = r.message;
+      setTimeout(() => {
+        if (msgEl.classList.contains('show')) {
+          msgEl.classList.remove('show');
+          msgEl.className = 'msg';
+          msgEl.textContent = '';
+        }
+      }, 5000);
+    }
     if (r.status === 'success') {
-      const msgEl = document.getElementById('setMsg');
-      if (msgEl) {
-        msgEl.className = 'msg success show';
-        msgEl.textContent = r.message;
-        setTimeout(() => {
-          if (msgEl.classList.contains('show')) {
-            msgEl.classList.remove('show');
-            msgEl.className = 'msg';
-            msgEl.textContent = '';
-          }
-        }, 5000);
-      }
       loadAllTeachers();
-    } else {
-      const msgEl = document.getElementById('setMsg');
-      if (msgEl) {
-        msgEl.className = 'msg error show';
-        msgEl.textContent = r.message;
-        setTimeout(() => {
-          if (msgEl.classList.contains('show')) {
-            msgEl.classList.remove('show');
-            msgEl.className = 'msg';
-            msgEl.textContent = '';
-          }
-        }, 5000);
-      }
     }
   });
 };
@@ -1403,7 +1417,7 @@ window.viewTeacherAttendance = async function (email) {
 
   if (r.status === 'success' && r.data && r.data.length > 0) {
     detContent.innerHTML = '<div class="table-wrap"><table class="data-table"><thead><tr><th>Tanggal</th><th>Check In</th><th>Check Out</th><th>Lokasi</th></tr></thead><tbody>' +
-      r.data.map(d => '<tr>' + formatDate(d.tanggal) + '</td>' + (d.checkIn || '-') + '</td>' + (d.checkOut || '-') + '</td>' + (d.lokasi || '-') + '</td></tr>').join('') +
+      r.data.map(d => '<tr><td>' + formatDate(d.tanggal) + '</td><td>' + (d.checkIn || '-') + '</td><td>' + (d.checkOut || '-') + '</td><td>' + (d.lokasi || '-') + '</td></tr>').join('') +
       '</tbody></table></div>';
   } else {
     detContent.innerHTML = '<div class="empty-state"><span class="icon">📭</span>Belum ada data absensi bulan ini</div>';
@@ -1505,16 +1519,22 @@ async function loadLocations() {
 
   const r = await apiCall({ action: 'getLocations' });
   if (!tbody) return;
+
   if (r.status === 'success' && r.data && r.data.length > 0) {
-    tbody.innerHTML = r.data.map(loc =>
-      '<tr>' +
-      '<td><strong>' + loc.nama_kelas + '</strong></td>' +
-      '<td>' + loc.lat + '</td>' +
-      '<td>' + loc.lng + '</td>' +
-      '<td><span class="badge badge-info">' + loc.radius_meter + ' m</span></td>' +
-      '<td><button class="btn-danger btn-sm" onclick="alert(\'Hapus lokasi: ' + loc.nama_kelas + ' (implementasi nanti)\')">🗑️ Hapus</button></td>' +
-      '</tr>'
-    ).join('');
+    let html = '';
+    for (let i = 0; i < r.data.length; i++) {
+      const loc = r.data[i];
+      html += `
+                <tr>
+                    <td><strong>${loc.nama_kelas}</strong></td>
+                    <td>${loc.lat}</td>
+                    <td>${loc.lng}</td>
+                    <td><span class="badge badge-info">${loc.radius_meter} m</span></td>
+                    <td><button class="btn-danger btn-sm" onclick="alert('Hapus lokasi: ${loc.nama_kelas} (implementasi nanti)')">🗑️ Hapus</button></td>
+                </tr>
+            `;
+    }
+    tbody.innerHTML = html;
   } else {
     tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Belum ada lokasi terdaftar</tbody>';
   }
@@ -1663,22 +1683,28 @@ function closeModal(id) {
   const el = document.getElementById(id);
   if (el) el.classList.remove('open');
   if (id === 'addTeacherModal') {
-    document.getElementById('addNama').value = '';
-    document.getElementById('addEmail').value = '';
-    document.getElementById('addPassword').value = '';
-    const msg = document.getElementById('addMsg');
-    if (msg) { msg.className = 'msg'; msg.textContent = ''; }
+    const addNama = document.getElementById('addNama');
+    const addEmail = document.getElementById('addEmail');
+    const addPassword = document.getElementById('addPassword');
+    const addMsg = document.getElementById('addMsg');
+    if (addNama) addNama.value = '';
+    if (addEmail) addEmail.value = '';
+    if (addPassword) addPassword.value = '';
+    if (addMsg) { addMsg.className = 'msg'; addMsg.textContent = ''; }
   }
   if (id === 'editTeacherModal') {
-    document.getElementById('editPassword').value = '';
-    const msg = document.getElementById('editMsg');
-    if (msg) { msg.className = 'msg'; msg.textContent = ''; }
+    const editPassword = document.getElementById('editPassword');
+    const editMsg = document.getElementById('editMsg');
+    if (editPassword) editPassword.value = '';
+    if (editMsg) { editMsg.className = 'msg'; editMsg.textContent = ''; }
   }
   if (id === 'changePwModal') {
-    document.getElementById('newPwd1').value = '';
-    document.getElementById('newPwd2').value = '';
-    const msg = document.getElementById('changePwMsg');
-    if (msg) { msg.className = 'msg'; msg.textContent = ''; }
+    const newPwd1 = document.getElementById('newPwd1');
+    const newPwd2 = document.getElementById('newPwd2');
+    const changePwMsg = document.getElementById('changePwMsg');
+    if (newPwd1) newPwd1.value = '';
+    if (newPwd2) newPwd2.value = '';
+    if (changePwMsg) { changePwMsg.className = 'msg'; changePwMsg.textContent = ''; }
   }
 }
 
@@ -1686,18 +1712,22 @@ function closeModal(id) {
 function initForgotModalCloseButton() {
   const closeBtn = document.getElementById('closeForgotBtn');
   const closeBtn2 = document.querySelector('#forgotModal .close-modal');
-  
+
   if (closeBtn) {
-    closeBtn.addEventListener('click', closeForgotModal);
+    const newCloseBtn = closeBtn.cloneNode(true);
+    closeBtn.parentNode.replaceChild(newCloseBtn, closeBtn);
+    newCloseBtn.addEventListener('click', closeForgotModal);
   }
-  
+
   if (closeBtn2) {
-    closeBtn2.addEventListener('click', closeForgotModal);
+    const newCloseBtn2 = closeBtn2.cloneNode(true);
+    closeBtn2.parentNode.replaceChild(newCloseBtn2, closeBtn2);
+    newCloseBtn2.addEventListener('click', closeForgotModal);
   }
-  
+
   const modal = document.getElementById('forgotModal');
   if (modal) {
-    modal.addEventListener('click', function(e) {
+    modal.addEventListener('click', function (e) {
       if (e.target === modal) {
         closeForgotModal();
       }
@@ -1706,12 +1736,13 @@ function initForgotModalCloseButton() {
 }
 
 function initAllModals() {
-  // Initialize all regular modals
   const allCloseButtons = document.querySelectorAll('.modal-overlay:not(#forgotModal):not(#confirmModal) .close-modal');
   allCloseButtons.forEach(btn => {
-    btn.addEventListener('click', function () {
+    const newBtn = btn.cloneNode(true);
+    btn.parentNode.replaceChild(newBtn, btn);
+    newBtn.addEventListener('click', function () {
       const modal = this.closest('.modal-overlay');
-      if (modal?.id) {
+      if (modal && modal.id) {
         closeModal(modal.id);
       }
     });
@@ -1725,8 +1756,7 @@ function initAllModals() {
       }
     });
   });
-  
-  // Initialize forgot modal close button
+
   initForgotModalCloseButton();
 }
 
@@ -1869,8 +1899,8 @@ function populateYears() {
 }
 
 // ==================== INITIALIZATION ====================
-document.addEventListener('DOMContentLoaded', () => {
-  console.log('🚀 Aplikasi dimulai v26.1 - KHUSUS PAPUA (WIT) - Fixed modal close');
+document.addEventListener('DOMContentLoaded', function () {
+  console.log('🚀 Aplikasi dimulai v27.0 - KHUSUS PAPUA (WIT) - FIXED TIME');
 
   updateClock();
   setInterval(updateClock, 1000);
@@ -1910,66 +1940,96 @@ document.addEventListener('DOMContentLoaded', () => {
     if (role === 'guru') {
       loadScheduleInfo();
       loadTodayStatus();
+
+      const captureBtn = document.getElementById('captureBtn');
+      const retakeBtn = document.getElementById('retakeBtn');
+      const getLocBtn = document.getElementById('getLocBtn');
+      const checkInBtn = document.getElementById('checkInBtn');
+      const checkOutBtn = document.getElementById('checkOutBtn');
+      const quickCheckInBtn = document.getElementById('quickCheckInBtn');
+      const quickCheckOutBtn = document.getElementById('quickCheckOutBtn');
+      const loadHistBtn = document.getElementById('loadHistBtn');
+
+      if (captureBtn) captureBtn.addEventListener('click', capturePhoto);
+      if (retakeBtn) retakeBtn.addEventListener('click', retakePhoto);
+      if (getLocBtn) getLocBtn.addEventListener('click', getLocation);
+      if (checkInBtn) checkInBtn.addEventListener('click', handleCheckIn);
+      if (checkOutBtn) checkOutBtn.addEventListener('click', handleCheckOut);
+      if (quickCheckInBtn) quickCheckInBtn.addEventListener('click', function () { navigate('Attendance'); });
+      if (quickCheckOutBtn) quickCheckOutBtn.addEventListener('click', function () { navigate('Attendance'); });
+      if (loadHistBtn) loadHistBtn.addEventListener('click', loadHistory);
     }
+
     if (role === 'admin') {
       loadAdminScheduleInfo();
+
+      const searchTeacher = document.getElementById('searchTeacher');
+      const filterRole = document.getElementById('filterRole');
+      const addTeacherBtn = document.getElementById('addTeacherBtn');
+      const saveAddBtn = document.getElementById('saveAddBtn');
+      const saveEditBtn = document.getElementById('saveEditBtn');
+      const addLocBtn = document.getElementById('addLocBtn');
+      const saveSetBtn = document.getElementById('saveSetBtn');
+      const genRepBtn = document.getElementById('genRepBtn');
+      const closeDetailBtn = document.getElementById('closeDetailBtn');
+      const closeAddModalBtn = document.getElementById('closeAddModalBtn');
+      const closeEditModalBtn = document.getElementById('closeEditModalBtn');
+
+      if (searchTeacher) searchTeacher.addEventListener('input', loadAllTeachers);
+      if (filterRole) filterRole.addEventListener('change', loadAllTeachers);
+      if (addTeacherBtn) addTeacherBtn.addEventListener('click', openAddTeacher);
+      if (saveAddBtn) saveAddBtn.addEventListener('click', saveAddTeacher);
+      if (saveEditBtn) saveEditBtn.addEventListener('click', saveEditTeacher);
+      if (addLocBtn) addLocBtn.addEventListener('click', addLocation);
+      if (saveSetBtn) saveSetBtn.addEventListener('click', saveSettings);
+      if (genRepBtn) genRepBtn.addEventListener('click', generateReport);
+      if (closeDetailBtn) closeDetailBtn.addEventListener('click', function () {
+        const teacherDetail = document.getElementById('teacherDetail');
+        if (teacherDetail) teacherDetail.style.display = 'none';
+      });
+      if (closeAddModalBtn) closeAddModalBtn.addEventListener('click', function () { closeModal('addTeacherModal'); });
+      if (closeEditModalBtn) closeEditModalBtn.addEventListener('click', function () { closeModal('editTeacherModal'); });
     }
+
     if (role === 'kepsek') {
       loadKepsekScheduleInfo();
       loadTeacherList();
 
-      // Event listeners untuk fitur laporan per guru
-      document.getElementById('previewReportBtn')?.addEventListener('click', previewTeacherReport);
-      document.getElementById('genTeacherReportBtn')?.addEventListener('click', sendTeacherReport);
-      document.getElementById('printTeacherReportBtn')?.addEventListener('click', printTeacherReport);
+      const searchTeacher = document.getElementById('searchTeacher');
+      const genRepBtn = document.getElementById('genRepBtn');
+      const closeDetailBtn = document.getElementById('closeDetailBtn');
+      const previewReportBtn = document.getElementById('previewReportBtn');
+      const genTeacherReportBtn = document.getElementById('genTeacherReportBtn');
+      const printTeacherReportBtn = document.getElementById('printTeacherReportBtn');
+
+      if (searchTeacher) searchTeacher.addEventListener('input', loadAllTeachers);
+      if (genRepBtn) genRepBtn.addEventListener('click', generateReport);
+      if (closeDetailBtn) closeDetailBtn.addEventListener('click', function () {
+        const teacherDetail = document.getElementById('teacherDetail');
+        if (teacherDetail) teacherDetail.style.display = 'none';
+      });
+      if (previewReportBtn) previewReportBtn.addEventListener('click', previewTeacherReport);
+      if (genTeacherReportBtn) genTeacherReportBtn.addEventListener('click', sendTeacherReport);
+      if (printTeacherReportBtn) printTeacherReportBtn.addEventListener('click', printTeacherReport);
     }
 
-    document.querySelectorAll('.nav-item').forEach(item => {
-      item.addEventListener('click', (e) => {
+    const navItems = document.querySelectorAll('.nav-item');
+    navItems.forEach(function (item) {
+      item.addEventListener('click', function (e) {
         e.preventDefault();
         navigate(item.getAttribute('data-page'));
       });
     });
 
-    document.getElementById('logoutBtn')?.addEventListener('click', logout);
-    document.getElementById('openChangePwBtn')?.addEventListener('click', () => openModal('changePwModal'));
-    document.getElementById('changePwBtn')?.addEventListener('click', changePassword);
-    document.getElementById('closePwModalBtn')?.addEventListener('click', () => closeModal('changePwModal'));
+    const logoutBtn = document.getElementById('logoutBtn');
+    const openChangePwBtn = document.getElementById('openChangePwBtn');
+    const changePwBtn = document.getElementById('changePwBtn');
+    const closePwModalBtn = document.getElementById('closePwModalBtn');
 
-    if (role === 'guru') {
-      document.getElementById('captureBtn')?.addEventListener('click', capturePhoto);
-      document.getElementById('retakeBtn')?.addEventListener('click', retakePhoto);
-      document.getElementById('getLocBtn')?.addEventListener('click', getLocation);
-      document.getElementById('checkInBtn')?.addEventListener('click', handleCheckIn);
-      document.getElementById('checkOutBtn')?.addEventListener('click', handleCheckOut);
-      document.getElementById('quickCheckInBtn')?.addEventListener('click', () => navigate('Attendance'));
-      document.getElementById('quickCheckOutBtn')?.addEventListener('click', () => navigate('Attendance'));
-      document.getElementById('loadHistBtn')?.addEventListener('click', loadHistory);
-    }
-
-    if (role === 'kepsek') {
-      document.getElementById('searchTeacher')?.addEventListener('input', loadAllTeachers);
-      document.getElementById('genRepBtn')?.addEventListener('click', generateReport);
-      document.getElementById('closeDetailBtn')?.addEventListener('click', () => {
-        document.getElementById('teacherDetail').style.display = 'none';
-      });
-    }
-
-    if (role === 'admin') {
-      document.getElementById('searchTeacher')?.addEventListener('input', loadAllTeachers);
-      document.getElementById('filterRole')?.addEventListener('change', loadAllTeachers);
-      document.getElementById('addTeacherBtn')?.addEventListener('click', openAddTeacher);
-      document.getElementById('saveAddBtn')?.addEventListener('click', saveAddTeacher);
-      document.getElementById('saveEditBtn')?.addEventListener('click', saveEditTeacher);
-      document.getElementById('addLocBtn')?.addEventListener('click', addLocation);
-      document.getElementById('saveSetBtn')?.addEventListener('click', saveSettings);
-      document.getElementById('genRepBtn')?.addEventListener('click', generateReport);
-      document.getElementById('closeDetailBtn')?.addEventListener('click', () => {
-        document.getElementById('teacherDetail').style.display = 'none';
-      });
-      document.getElementById('closeAddModalBtn')?.addEventListener('click', () => closeModal('addTeacherModal'));
-      document.getElementById('closeEditModalBtn')?.addEventListener('click', () => closeModal('editTeacherModal'));
-    }
+    if (logoutBtn) logoutBtn.addEventListener('click', logout);
+    if (openChangePwBtn) openChangePwBtn.addEventListener('click', function () { openModal('changePwModal'); });
+    if (changePwBtn) changePwBtn.addEventListener('click', changePassword);
+    if (closePwModalBtn) closePwModalBtn.addEventListener('click', function () { closeModal('changePwModal'); });
 
     navigate('Dashboard');
     return;
@@ -1978,28 +2038,39 @@ document.addEventListener('DOMContentLoaded', () => {
   // ===== HALAMAN INDEX (LOGIN/REGISTER) =====
   loadSchoolName();
 
-  document.querySelectorAll('.tab-two').forEach(tab => {
-    tab.addEventListener('click', () => {
+  const tabs = document.querySelectorAll('.tab-two');
+  tabs.forEach(function (tab) {
+    tab.addEventListener('click', function () {
       const targetTab = tab.getAttribute('data-tab');
       switchAuthTab(targetTab);
     });
   });
 
-  document.getElementById('loginBtn')?.addEventListener('click', handleLogin);
-  document.getElementById('registerBtn')?.addEventListener('click', handleRegister);
-  document.getElementById('resendVerifBtn')?.addEventListener('click', resendVerif);
-  document.getElementById('forgotBtn')?.addEventListener('click', openForgotModal);
-  
-  // Initialize forgot modal close button for index page
-  initForgotModalCloseButton();
-  
-  document.getElementById('sendOtpBtn')?.addEventListener('click', sendOtp);
-  document.getElementById('verifyOtpBtn')?.addEventListener('click', verifyOtp);
-  document.getElementById('resendOtpBtn')?.addEventListener('click', resendOtp);
-  document.getElementById('resetPwdBtn')?.addEventListener('click', doResetPassword);
-  document.getElementById('loginPassword')?.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') handleLogin(e);
-  });
+  const loginBtn = document.getElementById('loginBtn');
+  const registerBtn = document.getElementById('registerBtn');
+  const resendVerifBtn = document.getElementById('resendVerifBtn');
+  const forgotBtn = document.getElementById('forgotBtn');
+  const sendOtpBtn = document.getElementById('sendOtpBtn');
+  const verifyOtpBtn = document.getElementById('verifyOtpBtn');
+  const resendOtpBtn = document.getElementById('resendOtpBtn');
+  const resetPwdBtn = document.getElementById('resetPwdBtn');
+  const loginPassword = document.getElementById('loginPassword');
 
-  console.log('✅ Aplikasi siap digunakan v26.1 - Khusus Papua (WIT)');
+  if (loginBtn) loginBtn.addEventListener('click', handleLogin);
+  if (registerBtn) registerBtn.addEventListener('click', handleRegister);
+  if (resendVerifBtn) resendVerifBtn.addEventListener('click', resendVerif);
+  if (forgotBtn) forgotBtn.addEventListener('click', openForgotModal);
+  if (sendOtpBtn) sendOtpBtn.addEventListener('click', sendOtp);
+  if (verifyOtpBtn) verifyOtpBtn.addEventListener('click', verifyOtp);
+  if (resendOtpBtn) resendOtpBtn.addEventListener('click', resendOtp);
+  if (resetPwdBtn) resetPwdBtn.addEventListener('click', doResetPassword);
+  if (loginPassword) {
+    loginPassword.addEventListener('keypress', function (e) {
+      if (e.key === 'Enter') handleLogin(e);
+    });
+  }
+
+  initForgotModalCloseButton();
+
+  console.log('✅ Aplikasi siap digunakan v27.0 - Khusus Papua (WIT) - WITAkurat');
 });
