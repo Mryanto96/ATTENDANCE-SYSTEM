@@ -1,7 +1,7 @@
 // ============================================================
 // SISTEM ABSENSI DIGITAL - FRONTEND
-// Versi: 26.0 - KHUSUS PAPUA (WIT)
-// FITUR BARU: Laporan Per Guru, Preview, Cetak PDF, Kirim Email
+// Versi: 26.1 - KHUSUS PAPUA (WIT)
+// FIX: Close modal reset password
 // ============================================================
 
 const API_URL = "https://script.google.com/macros/s/AKfycbz0vfEEHdTnNyZniOvS5ArC7vakppAc3QDjdFmxLzn7NL_25xWZBBAAq4ox47a7lTDOfg/exec";
@@ -478,8 +478,13 @@ function openForgotModal() {
 
 function closeForgotModal() {
   const modal = document.getElementById('forgotModal');
-  if (modal) modal.classList.remove('open');
-  if (otpTimer) clearInterval(otpTimer);
+  if (modal) {
+    modal.classList.remove('open');
+  }
+  if (otpTimer) {
+    clearInterval(otpTimer);
+    otpTimer = null;
+  }
 }
 
 function goStep(stepName) {
@@ -1398,7 +1403,7 @@ window.viewTeacherAttendance = async function (email) {
 
   if (r.status === 'success' && r.data && r.data.length > 0) {
     detContent.innerHTML = '<div class="table-wrap"><table class="data-table"><thead><tr><th>Tanggal</th><th>Check In</th><th>Check Out</th><th>Lokasi</th></tr></thead><tbody>' +
-      r.data.map(d => '<td>' + formatDate(d.tanggal) + '</td><td>' + (d.checkIn || '-') + '</td><td>' + (d.checkOut || '-') + '</td><td>' + (d.lokasi || '-') + '</td></tr>').join('') +
+      r.data.map(d => '<tr>' + formatDate(d.tanggal) + '</td>' + (d.checkIn || '-') + '</td>' + (d.checkOut || '-') + '</td>' + (d.lokasi || '-') + '</td></tr>').join('') +
       '</tbody></table></div>';
   } else {
     detContent.innerHTML = '<div class="empty-state"><span class="icon">📭</span>Belum ada data absensi bulan ini</div>';
@@ -1503,7 +1508,7 @@ async function loadLocations() {
   if (r.status === 'success' && r.data && r.data.length > 0) {
     tbody.innerHTML = r.data.map(loc =>
       '<tr>' +
-      '<td><strong>' + loc.nama_kelas + '</strong><td>' +
+      '<td><strong>' + loc.nama_kelas + '</strong></td>' +
       '<td>' + loc.lat + '</td>' +
       '<td>' + loc.lng + '</td>' +
       '<td><span class="badge badge-info">' + loc.radius_meter + ' m</span></td>' +
@@ -1677,8 +1682,32 @@ function closeModal(id) {
   }
 }
 
+// ==================== INITIALIZE FORGOT MODAL CLOSE BUTTON ====================
+function initForgotModalCloseButton() {
+  const closeBtn = document.getElementById('closeForgotBtn');
+  const closeBtn2 = document.querySelector('#forgotModal .close-modal');
+  
+  if (closeBtn) {
+    closeBtn.addEventListener('click', closeForgotModal);
+  }
+  
+  if (closeBtn2) {
+    closeBtn2.addEventListener('click', closeForgotModal);
+  }
+  
+  const modal = document.getElementById('forgotModal');
+  if (modal) {
+    modal.addEventListener('click', function(e) {
+      if (e.target === modal) {
+        closeForgotModal();
+      }
+    });
+  }
+}
+
 function initAllModals() {
-  const allCloseButtons = document.querySelectorAll('.close-modal:not(#confirmModal .close-modal)');
+  // Initialize all regular modals
+  const allCloseButtons = document.querySelectorAll('.modal-overlay:not(#forgotModal):not(#confirmModal) .close-modal');
   allCloseButtons.forEach(btn => {
     btn.addEventListener('click', function () {
       const modal = this.closest('.modal-overlay');
@@ -1688,7 +1717,7 @@ function initAllModals() {
     });
   });
 
-  const allModals = document.querySelectorAll('.modal-overlay:not(#confirmModal)');
+  const allModals = document.querySelectorAll('.modal-overlay:not(#forgotModal):not(#confirmModal)');
   allModals.forEach(modal => {
     modal.addEventListener('click', function (e) {
       if (e.target === this && this.id) {
@@ -1696,6 +1725,9 @@ function initAllModals() {
       }
     });
   });
+  
+  // Initialize forgot modal close button
+  initForgotModalCloseButton();
 }
 
 // ==================== MOBILE MENU ====================
@@ -1838,7 +1870,7 @@ function populateYears() {
 
 // ==================== INITIALIZATION ====================
 document.addEventListener('DOMContentLoaded', () => {
-  console.log('🚀 Aplikasi dimulai v26.0 - KHUSUS PAPUA (WIT)');
+  console.log('🚀 Aplikasi dimulai v26.1 - KHUSUS PAPUA (WIT) - Fixed modal close');
 
   updateClock();
   setInterval(updateClock, 1000);
@@ -1884,7 +1916,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (role === 'kepsek') {
       loadKepsekScheduleInfo();
-      loadTeacherList(); // Load dropdown guru
+      loadTeacherList();
 
       // Event listeners untuk fitur laporan per guru
       document.getElementById('previewReportBtn')?.addEventListener('click', previewTeacherReport);
@@ -1957,10 +1989,10 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('registerBtn')?.addEventListener('click', handleRegister);
   document.getElementById('resendVerifBtn')?.addEventListener('click', resendVerif);
   document.getElementById('forgotBtn')?.addEventListener('click', openForgotModal);
-  document.getElementById('closeForgotBtn')?.addEventListener('click', closeForgotModal);
-  document.getElementById('forgotModal')?.addEventListener('click', (e) => {
-    if (e.target === e.currentTarget) closeForgotModal();
-  });
+  
+  // Initialize forgot modal close button for index page
+  initForgotModalCloseButton();
+  
   document.getElementById('sendOtpBtn')?.addEventListener('click', sendOtp);
   document.getElementById('verifyOtpBtn')?.addEventListener('click', verifyOtp);
   document.getElementById('resendOtpBtn')?.addEventListener('click', resendOtp);
@@ -1969,5 +2001,5 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Enter') handleLogin(e);
   });
 
-  console.log('✅ Aplikasi siap digunakan v26.0 - Khusus Papua (WIT)');
+  console.log('✅ Aplikasi siap digunakan v26.1 - Khusus Papua (WIT)');
 });
